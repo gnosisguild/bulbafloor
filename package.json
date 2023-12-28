@@ -71,9 +71,13 @@
     "postcompile": "pnpm typechain",
     "prettier:check": "prettier --check \"**/*.{js,json,md,sol,ts,yml}\"",
     "prettier:write": "prettier --write \"**/*.{js,json,md,sol,ts,yml}\"",
-    "task:deployGreeter": "hardhat task:deployGreeter",
+    "task:deployBulbafloor": "hardhat task:deployBulbafloor",
     "task:setGreeting": "hardhat task:setGreeting",
     "test": "hardhat test",
     "typechain": "cross-env TS_NODE_TRANSPILE_ONLY=true hardhat typechain"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.1",
+    "@openzeppelin/contracts-upgradeable": "^5.0.1"
   }
 }

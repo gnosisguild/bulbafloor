@@ -1,12 +1,12 @@
 import type { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/dist/src/signer-with-address";
 
-import type { Greeter } from "../types/Greeter";
+import type { Bulbafloor } from "../types/Bulbafloor";
 
 type Fixture<T> = () => Promise<T>;
 
 declare module "mocha" {
   export interface Context {
-    greeter: Greeter;
+    bulbafloor: Bulbafloor;
     loadFixture: <T>(fixture: Fixture<T>) => Promise<T>;
     signers: Signers;
   }

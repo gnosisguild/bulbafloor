@@ -2,8 +2,8 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { ethers } from "hardhat";
 
 import type { Signers } from "../types";
-import { shouldBehaveLikeGreeter } from "./Greeter.behavior";
-import { deployGreeterFixture } from "./Greeter.fixture";
+import { shouldBehaveLikeBulbafloor } from "./Bulbafloor.behavior";
+import { deployBulbafloorFixture } from "./Bulbafloor.fixture";
 
 describe("Unit tests", function () {
   before(async function () {
@@ -15,12 +15,12 @@ describe("Unit tests", function () {
     this.loadFixture = loadFixture;
   });
 
-  describe("Greeter", function () {
+  describe("Bulbafloor", function () {
     beforeEach(async function () {
-      const { greeter } = await this.loadFixture(deployGreeterFixture);
-      this.greeter = greeter;
+      const { bulbafloor } = await this.loadFixture(deployBulbafloorFixture);
+      this.bulbafloor = bulbafloor;
     });
 
-    shouldBehaveLikeGreeter();
+    shouldBehaveLikeBulbafloor();
   });
 });
