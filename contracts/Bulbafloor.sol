@@ -1,18 +1,16 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
-import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import { ERC721Holder } from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import { IERC1155 } from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import { ERC1155Holder } from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721Holder {
-    using SafeMathUpgradeable for uint256;
     using SafeERC20 for IERC20;
 
     struct Auction {
@@ -37,7 +35,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         erc1155
     }
 
-    mapping(uint256 auctionId => Auction) public auctions;
+    mapping(uint256 auctionId => Auction auction) public auctions;
     uint256 private nextAuctionId;
 
     uint256 public feePercentage;
@@ -149,16 +147,14 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         uint256 feeAmount = 0;
         uint256 _feePercentage = auction.feePercentage;
         if (_feePercentage != 0) {
-            feeAmount = currentPrice.mul(_feePercentage).div(100);
+            feeAmount = (currentPrice * _feePercentage) / 100;
             IERC20(saleToken).safeTransferFrom(msg.sender, feeCollector, feeAmount);
         }
         IERC20(saleToken).safeTransferFrom(msg.sender, auction.seller, currentPrice - feeAmount);
 
-        if (auction.tokenType == TokenType.erc721) {
+        if (auction.tokenType == TokenType.erc721)
             IERC721(tokenContract).safeTransferFrom(address(this), msg.sender, tokenId);
-        } else {
-            IERC1155(tokenContract).safeTransferFrom(address(this), msg.sender, tokenId, auction.amount, "");
-        }
+        else IERC1155(tokenContract).safeTransferFrom(address(this), msg.sender, tokenId, auction.amount, "");
 
         emit AuctionSuccessful(auctionId, currentPrice, msg.sender);
     }
@@ -166,22 +162,20 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
     function getCurrentPrice(uint256 auctionId) public view returns (address, uint256) {
         Auction storage auction = auctions[auctionId];
 
-        uint256 elapsedTime = block.timestamp.sub(auction.startTime);
+        uint256 elapsedTime = block.timestamp - auction.startTime;
         uint256 duration = auction.duration;
-        if (elapsedTime >= duration) {
-            return (auction.tokenContract, auction.reservePrice);
-        }
+        if (elapsedTime >= duration) return (auction.tokenContract, auction.reservePrice);
 
         uint256 startPrice = auction.startPrice;
-        uint256 priceDrop = startPrice.mul(elapsedTime).div(duration);
-        return (auction.tokenContract, startPrice.sub(priceDrop));
+        uint256 priceDrop = (startPrice * elapsedTime) / duration;
+        uint256 currentPrice = startPrice - priceDrop;
+        if (currentPrice < auction.reservePrice) currentPrice = auction.reservePrice;
+        return (auction.tokenContract, currentPrice);
     }
 
     function cancelAuction(uint256 _auctionId) external onlyOwner {
         Auction storage auction = auctions[_auctionId];
-        if (auction.startTime.add(auction.duration) <= block.timestamp) {
-            revert("Auction has ended");
-        }
+        if (auction.startTime + auction.duration <= block.timestamp) revert TooLate();
         if (msg.sender != auction.seller) revert OnlySellerCanCancel();
 
         address tokenContract = auction.tokenContract;
@@ -192,11 +186,8 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
 
         delete auctions[_auctionId];
 
-        if (tokenType == TokenType.erc721) {
-            IERC721(tokenContract).safeTransferFrom(address(this), seller, tokenId);
-        } else {
-            IERC1155(tokenContract).safeTransferFrom(address(this), seller, tokenId, amount, "");
-        }
+        if (tokenType == TokenType.erc721) IERC721(tokenContract).safeTransferFrom(address(this), seller, tokenId);
+        else IERC1155(tokenContract).safeTransferFrom(address(this), seller, tokenId, amount, "");
 
         emit AuctionCancelled(_auctionId);
     }
