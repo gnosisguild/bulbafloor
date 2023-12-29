@@ -22,9 +22,9 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         address seller;
         uint256 startPrice;
         uint256 reservePrice;
-        uint256 feePercentage;
+        uint16 feeBasisPoints;
         address royaltyRecipient;
-        uint256 royaltyPercentage;
+        uint16 royaltyBasisPoints;
         uint256 duration;
         uint256 startTime;
         bool sold;
@@ -35,20 +35,22 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         erc1155
     }
 
-    mapping(uint256 auctionId => Auction auction) public auctions;
-    uint256 private nextAuctionId;
+    uint16 constant DENOMINATOR = 10000;
 
-    uint256 public feePercentage;
+    uint256 private nextAuctionId;
+    mapping(uint256 auctionId => Auction auction) public auctions;
     address public feeCollector;
+    uint16 public feeBasisPoints;
 
     error InvalidPercentage();
     error InvalidFeeCollector();
     error durationCannotBeZero();
     error royaltyTooHigh();
     error AuctionDoesNotExist();
-    error TooLate();
+    error AuctionClosed();
     error OnlySellerCanCancel();
 
+    event Initialized(address indexed owner, uint16 feeBasisPoints, address indexed feeCollector);
     event AuctionCreated(
         uint256 auctionId,
         uint256 tokenId,
@@ -61,23 +63,27 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
     );
     event AuctionSuccessful(uint256 auctionId, uint256 totalPrice, address winner);
     event AuctionCancelled(uint256 auctionId);
-    event FeePercentageSet(uint256 feePercentage);
+    event feeBasisPointsSet(uint256 feeBasisPoints);
     event FeeCollectorSet(address feeCollector);
 
-    constructor(address initialOwner) {
-        initialize(initialOwner);
+    constructor(address initialOwner, uint16 _feeBasisPoints, address _feeCollector) {
+        initialize(initialOwner, _feeBasisPoints, _feeCollector);
     }
 
-    function initialize(address initialOwner) public initializer {
+    function initialize(address initialOwner, uint16 _feeBasisPoints, address _feeCollector) public initializer {
         __Ownable_init(initialOwner);
+        feeBasisPoints = _feeBasisPoints;
+        feeCollector = _feeCollector;
+
+        emit Initialized(initialOwner, _feeBasisPoints, feeCollector);
     }
 
-    function setFeePercentage(uint256 _feePercentage) external onlyOwner {
-        if (_feePercentage > 100) revert InvalidPercentage();
+    function setFeeBasisPoints(uint16 _feeBasisPoints) external onlyOwner {
+        if (_feeBasisPoints > DENOMINATOR) revert InvalidPercentage();
 
-        feePercentage = _feePercentage;
+        feeBasisPoints = _feeBasisPoints;
 
-        emit FeePercentageSet(_feePercentage);
+        emit feeBasisPointsSet(_feeBasisPoints);
     }
 
     function setFeeCollector(address _feeCollector) external onlyOwner {
@@ -88,79 +94,13 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         emit FeeCollectorSet(_feeCollector);
     }
 
-    function createAuction(
-        uint256 tokenId,
-        address tokenContract,
-        TokenType tokenType,
-        uint256 amount,
-        address saleToken,
-        uint256 startPrice,
-        uint256 reservePrice,
-        address royaltyRecipient,
-        uint256 royaltyPercentage,
-        uint256 duration
-    ) external {
-        if (duration == 0) revert durationCannotBeZero();
-        if (royaltyPercentage + feePercentage > 100) revert royaltyTooHigh();
-
-        uint256 auctionId = nextAuctionId;
-
-        auctions[auctionId] = Auction({
-            tokenId: tokenId,
-            tokenContract: tokenContract,
-            tokenType: tokenType,
-            amount: amount,
-            saleToken: saleToken,
-            seller: msg.sender,
-            startPrice: startPrice,
-            reservePrice: reservePrice,
-            feePercentage: feePercentage,
-            royaltyRecipient: royaltyRecipient,
-            royaltyPercentage: royaltyPercentage,
-            duration: duration,
-            startTime: block.timestamp,
-            sold: false
-        });
-
-        nextAuctionId++;
-
-        if (tokenType == TokenType.erc721) {
-            IERC721(tokenContract).safeTransferFrom(msg.sender, address(this), tokenId);
-        } else {
-            IERC1155(tokenContract).safeTransferFrom(msg.sender, address(this), tokenId, 1, "");
-        }
-
-        emit AuctionCreated(auctionId, tokenId, tokenContract, tokenType, saleToken, msg.sender, startPrice, duration);
-    }
-
-    function buy(uint256 auctionId) external {
-        Auction storage auction = auctions[auctionId];
-        uint256 tokenId = auction.tokenId;
-        if (tokenId == 0) revert AuctionDoesNotExist();
-
-        if (auction.sold) revert TooLate();
-        auction.sold = true;
-
-        address saleToken = auction.saleToken;
-
-        (address tokenContract, uint256 currentPrice) = getCurrentPrice(auctionId);
-        uint256 feeAmount = 0;
-        uint256 _feePercentage = auction.feePercentage;
-        if (_feePercentage != 0) {
-            feeAmount = (currentPrice * _feePercentage) / 100;
-            IERC20(saleToken).safeTransferFrom(msg.sender, feeCollector, feeAmount);
-        }
-        IERC20(saleToken).safeTransferFrom(msg.sender, auction.seller, currentPrice - feeAmount);
-
-        if (auction.tokenType == TokenType.erc721)
-            IERC721(tokenContract).safeTransferFrom(address(this), msg.sender, tokenId);
-        else IERC1155(tokenContract).safeTransferFrom(address(this), msg.sender, tokenId, auction.amount, "");
-
-        emit AuctionSuccessful(auctionId, currentPrice, msg.sender);
+    function checkAuction(uint256 auctionId) internal view returns (uint256) {
+        if (auctions[auctionId].tokenContract == address(0)) revert AuctionDoesNotExist();
+        return auctionId;
     }
 
     function getCurrentPrice(uint256 auctionId) public view returns (address, uint256) {
-        Auction storage auction = auctions[auctionId];
+        Auction storage auction = auctions[checkAuction(auctionId)];
 
         uint256 elapsedTime = block.timestamp - auction.startTime;
         uint256 duration = auction.duration;
@@ -173,9 +113,92 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         return (auction.tokenContract, currentPrice);
     }
 
-    function cancelAuction(uint256 _auctionId) external onlyOwner {
-        Auction storage auction = auctions[_auctionId];
-        if (auction.startTime + auction.duration <= block.timestamp) revert TooLate();
+    function deleteAuction(uint256 auctionId) internal {
+        delete auctions[auctionId];
+    }
+
+    function createAuction(
+        uint256 tokenId,
+        address tokenContract,
+        TokenType tokenType,
+        uint256 amount,
+        address saleToken,
+        uint256 startPrice,
+        uint256 reservePrice,
+        address royaltyRecipient,
+        uint16 royaltyBasisPoints,
+        uint256 duration
+    ) external {
+        if (duration == 0) revert durationCannotBeZero();
+        if (royaltyBasisPoints + feeBasisPoints > DENOMINATOR) revert royaltyTooHigh();
+
+        uint256 auctionId = nextAuctionId;
+        nextAuctionId++;
+
+        auctions[auctionId] = Auction({
+            tokenId: tokenId,
+            tokenContract: tokenContract,
+            tokenType: tokenType,
+            amount: amount,
+            saleToken: saleToken,
+            seller: msg.sender,
+            startPrice: startPrice,
+            reservePrice: reservePrice,
+            feeBasisPoints: feeBasisPoints,
+            royaltyRecipient: royaltyRecipient,
+            royaltyBasisPoints: royaltyBasisPoints,
+            duration: duration,
+            startTime: block.timestamp,
+            sold: false
+        });
+
+        if (tokenType == TokenType.erc721) {
+            IERC721(tokenContract).safeTransferFrom(msg.sender, address(this), tokenId);
+        } else {
+            IERC1155(tokenContract).safeTransferFrom(msg.sender, address(this), tokenId, 1, "");
+        }
+
+        emit AuctionCreated(auctionId, tokenId, tokenContract, tokenType, saleToken, msg.sender, startPrice, duration);
+    }
+
+    function buy(uint256 auctionId) external {
+        Auction storage auction = auctions[checkAuction(auctionId)];
+
+        address seller = auction.seller;
+        address saleToken = auction.saleToken;
+        uint256 tokenId = auction.tokenId;
+        TokenType tokenType = auction.tokenType;
+        (address tokenContract, uint256 currentPrice) = getCurrentPrice(auctionId);
+        uint256 fee = 0;
+        uint16 _feeBasisPoints = auction.feeBasisPoints;
+        uint256 royalty = 0;
+        uint16 royaltyBasisPoints = auction.royaltyBasisPoints;
+        address royaltyRecipient = auction.royaltyRecipient;
+        uint256 amount = auction.amount;
+
+        deleteAuction(auctionId);
+
+        if (_feeBasisPoints != 0) {
+            fee = (currentPrice * _feeBasisPoints) / DENOMINATOR;
+            IERC20(saleToken).safeTransferFrom(msg.sender, feeCollector, fee);
+        }
+
+        if (royaltyBasisPoints != 0) {
+            royalty = (currentPrice * royaltyBasisPoints) / DENOMINATOR;
+            IERC20(saleToken).safeTransferFrom(msg.sender, royaltyRecipient, royalty);
+        }
+
+        IERC20(saleToken).safeTransferFrom(msg.sender, seller, currentPrice - fee);
+
+        if (tokenType == TokenType.erc721) IERC721(tokenContract).safeTransferFrom(address(this), msg.sender, tokenId);
+        else IERC1155(tokenContract).safeTransferFrom(address(this), msg.sender, tokenId, amount, "");
+
+        emit AuctionSuccessful(auctionId, currentPrice, msg.sender);
+    }
+
+    function cancelAuction(uint256 auctionId) external {
+        Auction storage auction = auctions[checkAuction(auctionId)];
+        if (auction.sold) revert AuctionClosed();
         if (msg.sender != auction.seller) revert OnlySellerCanCancel();
 
         address tokenContract = auction.tokenContract;
@@ -184,28 +207,30 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         uint256 tokenId = auction.tokenId;
         uint256 amount = auction.amount;
 
-        delete auctions[_auctionId];
+        deleteAuction(auctionId);
 
         if (tokenType == TokenType.erc721) IERC721(tokenContract).safeTransferFrom(address(this), seller, tokenId);
         else IERC1155(tokenContract).safeTransferFrom(address(this), seller, tokenId, amount, "");
 
-        emit AuctionCancelled(_auctionId);
+        emit AuctionCancelled(auctionId);
     }
 
     function recoverNativeTokens() external {
         payable(feeCollector).transfer(address(this).balance);
     }
 
-    function recoverERC20(address tokenContract) external {
-        uint256 amount = IERC20(tokenContract).balanceOf(address(this));
-        IERC20(tokenContract).safeTransferFrom(address(this), feeCollector, amount);
+    function recoverERC20tokens(address[] memory tokenContracts) external {
+        for (uint i = 0; i < tokenContracts.length; i++) {
+            uint256 amount = IERC20(tokenContracts[i]).balanceOf(address(this));
+            IERC20(tokenContracts[i]).safeTransferFrom(address(this), feeCollector, amount);
+        }
     }
 
-    function recoverERC721(address tokenContract, uint256 tokenId) external onlyOwner {
+    function recoverERC721tokens(address tokenContract, uint256 tokenId) external onlyOwner {
         IERC721(tokenContract).safeTransferFrom(address(this), feeCollector, tokenId);
     }
 
-    function recoverERC1155(address tokenContract, uint256 tokenId, uint256 amount) external onlyOwner {
+    function recoverERC1155tokens(address tokenContract, uint256 tokenId, uint256 amount) external onlyOwner {
         IERC1155(tokenContract).safeTransferFrom(address(this), feeCollector, tokenId, amount, "");
     }
 }
