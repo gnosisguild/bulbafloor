@@ -94,7 +94,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         emit FeeCollectorSet(_feeCollector);
     }
 
-    function checkAuction(uint256 auctionId) internal view returns (uint256) {
+    function checkAuction(uint256 auctionId) public view returns (uint256) {
         if (auctions[auctionId].tokenContract == address(0)) revert AuctionDoesNotExist();
         return auctionId;
     }
@@ -118,8 +118,8 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
     }
 
     function createAuction(
-        uint256 tokenId,
         address tokenContract,
+        uint256 tokenId,
         TokenType tokenType,
         uint256 amount,
         address saleToken,

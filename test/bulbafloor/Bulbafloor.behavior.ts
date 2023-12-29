@@ -1,17 +1,31 @@
 import { expect } from "chai";
+import exp from "constants";
 
 export function shouldBehaveLikeBulbafloor(): void {
   describe("constructor", function () {
-    it("should deploy");
+    it("should deploy", async function () {
+      expect(await this.bulbafloor.owner()).to.equal(this.signers.admin.address);
+    });
   });
 
   describe("initialize()", function () {
-    it("should correctly initialize parameters");
+    it("should correctly initialize parameters", async function () {
+      expect(await this.bulbafloor.owner()).to.equal(this.signers.admin.address);
+      expect(await this.bulbafloor.feeBasisPoints()).to.equal(this.feeBasisPoints);
+      expect(await this.bulbafloor.feeCollector()).to.equal(this.signers.feeCollector.address);
+    });
   });
 
   describe("checkAuction()", function () {
-    it("should revert if auction does not exist");
-    it("should return correct auction");
+    it("should revert if auction does not exist", async function () {
+      await expect(this.bulbafloor.checkAuction(1)).to.be.revertedWithCustomError(
+        this.bulbafloor,
+        "AuctionDoesNotExist()",
+      );
+    });
+    it("should return correct auction", async function () {
+      expect(await this.bulbafloor.checkAuction(0)).to.equal(0);
+    });
   });
 
   describe("getCurrentPrice()", function () {
