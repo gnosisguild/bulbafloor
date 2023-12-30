@@ -157,21 +157,25 @@ export function shouldBehaveLikeBulbafloor(): void {
     });
     it("should create a new auction with correct parameters", async function () {
       const [
-        tokenId,
         tokenContract,
+        tokenId,
         tokenType,
         amount,
         saleToken,
         seller,
         startPrice,
         reservePrice,
-        _feeBasisPoints,
+        feeBasisPoints,
         royaltyRecipient,
         royaltyBasisPoints,
         duration,
         startTime,
         sold,
       ] = await this.bulbafloor.getAuction(0);
+      const timestamp = await hre.network.provider
+        .send("eth_getBlockByNumber", ["latest", false])
+        .then((x: any) => x.timestamp);
+
       expect(tokenContract).to.equal(this.Erc721.target);
       expect(tokenId).to.equal(0);
       expect(tokenType).to.equal(0);
@@ -180,15 +184,48 @@ export function shouldBehaveLikeBulbafloor(): void {
       expect(seller).to.equal(this.signers.admin.address);
       expect(startPrice).to.equal(10000);
       expect(reservePrice).to.equal(250);
-      expect(_feeBasisPoints).to.equal(this.feeBasisPoints);
+      expect(feeBasisPoints).to.equal(this.feeBasisPoints);
       expect(royaltyRecipient).to.equal(this.signers.royaltyRecipient.address);
-      expect(royaltyBasisPoints).to.equal(this.royaltyBasisPoints);
-      expect(duration).to.equal(this.duration);
-      expect(startTime).to.equal(await hre.network.provider.send("evm_getBlockTimestamp"));
+      expect(royaltyBasisPoints).to.equal(100);
+      expect(duration).to.equal(10000);
+      expect(startTime).to.equal(timestamp);
       expect(sold).to.equal(false);
     });
-    it("should transfer NFT to Bulbafloor contract");
-    it("should should emit AuctionCreated() with correct parameters");
+    it("should transfer NFT to Bulbafloor contract", async function () {
+      await this.Erc721.approve(this.bulbafloor.target, 1);
+      await this.bulbafloor.createAuction(
+        this.Erc721.target,
+        1,
+        0,
+        0,
+        this.Erc20.target,
+        10000,
+        250,
+        this.signers.royaltyRecipient.address,
+        100,
+        10000,
+      );
+      expect(await this.Erc721.ownerOf(1)).to.equal(this.bulbafloor.target);
+    });
+    it("should should emit AuctionCreated() with correct parameters", async function () {
+      await this.Erc721.approve(this.bulbafloor.target, 1);
+      await expect(
+        this.bulbafloor.createAuction(
+          this.Erc721.target,
+          1,
+          0,
+          0,
+          this.Erc20.target,
+          10000,
+          250,
+          this.signers.royaltyRecipient.address,
+          100,
+          10000,
+        ),
+      )
+        .to.emit(this.bulbafloor, "AuctionCreated")
+        .withArgs(1, this.Erc721.target, 1, 0, this.Erc20.target, this.signers.admin.address, 10000, 250, 10000);
+    });
   });
 
   describe("buy()", function () {

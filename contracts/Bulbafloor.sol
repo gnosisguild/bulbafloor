@@ -53,12 +53,13 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
     event Initialized(address indexed owner, uint16 feeBasisPoints, address indexed feeCollector);
     event AuctionCreated(
         uint256 auctionId,
-        uint256 tokenId,
         address indexed tokenContract,
+        uint256 tokenId,
         TokenType tokenType,
         address indexed saleToken,
         address indexed seller,
         uint256 startPrice,
+        uint256 reservePrice,
         uint256 duration
     );
     event AuctionSuccessful(uint256 auctionId, uint256 totalPrice, address winner);
@@ -200,7 +201,17 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
             IERC1155(tokenContract).safeTransferFrom(msg.sender, address(this), tokenId, 1, "");
         }
 
-        emit AuctionCreated(auctionId, tokenId, tokenContract, tokenType, saleToken, msg.sender, startPrice, duration);
+        emit AuctionCreated(
+            auctionId,
+            tokenContract,
+            tokenId,
+            tokenType,
+            saleToken,
+            msg.sender,
+            startPrice,
+            reservePrice,
+            duration
+        );
     }
 
     function buy(uint256 auctionId) external {
