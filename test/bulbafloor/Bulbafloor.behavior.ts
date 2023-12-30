@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import exp from "constants";
+import hre from "hardhat";
 
 export function shouldBehaveLikeBulbafloor(): void {
   describe("constructor", function () {
@@ -29,30 +29,164 @@ export function shouldBehaveLikeBulbafloor(): void {
   });
 
   describe("getCurrentPrice()", function () {
-    it("should return reserve price if elapsed time exceeds duration");
-    it("should return reserve price if calculated current price is lower than reserve price");
-    it("should return calculated current price if it is higher than reserve price");
+    it("should return reserve price if elapsed time exceeds duration", async function () {
+      const [, , , , , , , reservePrice, , , , duration] = await this.bulbafloor.getAuction(0);
+      await hre.network.provider.send("evm_increaseTime", [Number(duration) + 1]);
+      await hre.network.provider.send("evm_mine");
+      const [, currentPrice] = await this.bulbafloor.getCurrentPrice(0);
+      expect(currentPrice).to.equal(reservePrice);
+    });
+    it("should return reserve price if calculated current price is lower than reserve price", async function () {
+      const [, , , , , , startPrice, reservePrice, , , , duration] = await this.bulbafloor.getAuction(0);
+      await hre.network.provider.send("evm_increaseTime", [
+        ((Number(startPrice) - Number(reservePrice)) / Number(startPrice)) * Number(duration) + 1,
+      ]);
+      await hre.network.provider.send("evm_mine");
+      const [, currentPrice] = await this.bulbafloor.getCurrentPrice(0);
+      expect(currentPrice).to.equal(reservePrice);
+    });
+    it("should return calculated current price if it is higher than reserve price", async function () {
+      const [, , , , , , startPrice, , , , , duration] = await this.bulbafloor.getAuction(0);
+      await hre.network.provider.send("evm_increaseTime", [Number(duration) / 2]);
+      await hre.network.provider.send("evm_mine");
+      const [, currentPrice] = await this.bulbafloor.getCurrentPrice(0);
+      expect(currentPrice).to.equal(startPrice / 2n);
+    });
   });
 
   describe("setFeeBasisPoints()", function () {
-    it("should revert if called by account other than owner");
-    it("should revert if _feeBasisPoints is greater than DENOMINATOR");
-    it("should set feeBasisPoints");
-    it("should should emit FeeBasisPoints() with correct parameters");
+    it("should revert if called by account other than owner", async function () {
+      // await this.bulbafloor.connect(this.signers.buyer).setFeeBasisPoints(100);
+      await expect(this.bulbafloor.connect(this.signers.buyer).setFeeBasisPoints(100)).to.be.reverted;
+    });
+    it("should revert if _feeBasisPoints is greater than DENOMINATOR", async function () {
+      const denominator = await this.bulbafloor.DENOMINATOR();
+      await expect(this.bulbafloor.setFeeBasisPoints(Number(denominator) + 1)).to.be.revertedWithCustomError(
+        this.bulbafloor,
+        "FeeBasisPointsGreaterThanDenominator()",
+      );
+    });
+    it("should set feeBasisPoints", async function () {
+      const newFeeBasisPoints = 100;
+      await this.bulbafloor.setFeeBasisPoints(newFeeBasisPoints);
+      expect(await this.bulbafloor.feeBasisPoints()).to.equal(newFeeBasisPoints);
+    });
+    it("should should emit FeeBasisPoints() with correct parameters", async function () {
+      const newFeeBasisPoints = 100;
+      await expect(this.bulbafloor.setFeeBasisPoints(newFeeBasisPoints))
+        .to.emit(this.bulbafloor, "FeeBasisPointsSet")
+        .withArgs(newFeeBasisPoints);
+    });
   });
 
   describe("setFeeCollector()", function () {
-    it("should revert if called by account other than owner");
-    it("should revert if _feeCollector is equal to feeCollector");
-    it("should set feeCollector");
-    it("should should emit FeeCollectorSet() with correct parameters");
+    it("should revert if called by account other than owner, feeCollector", async function () {
+      await expect(this.bulbafloor.connect(this.signers.buyer).setFeeCollector(this.signers.buyer.address)).to.be
+        .reverted;
+    });
+    it("should revert if _feeCollector is equal to feeCollector", async function () {
+      await expect(this.bulbafloor.setFeeCollector(this.signers.feeCollector.address)).to.be.revertedWithCustomError(
+        this.bulbafloor,
+        "FeeCollectorAlreadySetToThisAddress()",
+      );
+    });
+    it("should set feeCollector", async function () {
+      const newFeeCollector = this.signers.buyer.address;
+      await this.bulbafloor.setFeeCollector(newFeeCollector);
+      expect(await this.bulbafloor.feeCollector()).to.equal(newFeeCollector);
+    });
+    it("should should emit FeeCollectorSet() with correct parameters", async function () {
+      const newFeeCollector = this.signers.buyer.address;
+      await expect(this.bulbafloor.setFeeCollector(newFeeCollector))
+        .to.emit(this.bulbafloor, "FeeCollectorSet")
+        .withArgs(newFeeCollector);
+    });
   });
 
-  describe("createAuction()", function () {
-    it("should revert if duration is equal to 0");
-    it("should revert if royaltyBasisPoints + feeBasisPoints is greater than DENOMINATOR");
-    it("should increment nextAuctionId");
-    it("should create a new auction with correct parameters");
+  describe.only("createAuction()", function () {
+    it("should revert if duration is equal to 0", async function () {
+      await expect(
+        this.bulbafloor.createAuction(
+          this.Erc721.target,
+          0,
+          0,
+          0,
+          this.Erc20.target,
+          10000,
+          250,
+          this.signers.royaltyRecipient.address,
+          100,
+          0,
+        ),
+      ).to.be.revertedWithCustomError(this.bulbafloor, "DurationCannotBeZero()");
+    });
+    it("should revert if royaltyBasisPoints + feeBasisPoints is greater than DENOMINATOR", async function () {
+      const denominator = await this.bulbafloor.DENOMINATOR();
+      await this.Erc721.approve(this.bulbafloor.target, 1);
+      await expect(
+        this.bulbafloor.createAuction(
+          this.Erc721.target,
+          1,
+          0,
+          0,
+          this.Erc20.target,
+          10000,
+          250,
+          this.signers.royaltyRecipient.address,
+          Number(denominator) - Number(this.feeBasisPoints) + 1,
+          10000,
+        ),
+      ).to.be.revertedWithCustomError(this.bulbafloor, "RoyaltyBasisPointsPlusFeeBasisPointsGreaterThanDenominator()");
+    });
+    it("should increment nextAuctionId", async function () {
+      const nextAuctionId = await this.bulbafloor.nextAuctionId();
+      await this.Erc721.approve(this.bulbafloor.target, 1);
+      await this.bulbafloor.createAuction(
+        this.Erc721.target,
+        1,
+        0,
+        0,
+        this.Erc20.target,
+        10000,
+        250,
+        this.signers.royaltyRecipient.address,
+        100,
+        10000,
+      );
+      expect(await this.bulbafloor.nextAuctionId()).to.equal(Number(nextAuctionId) + 1);
+    });
+    it("should create a new auction with correct parameters", async function () {
+      const [
+        tokenId,
+        tokenContract,
+        tokenType,
+        amount,
+        saleToken,
+        seller,
+        startPrice,
+        reservePrice,
+        _feeBasisPoints,
+        royaltyRecipient,
+        royaltyBasisPoints,
+        duration,
+        startTime,
+        sold,
+      ] = await this.bulbafloor.getAuction(0);
+      expect(tokenContract).to.equal(this.Erc721.target);
+      expect(tokenId).to.equal(0);
+      expect(tokenType).to.equal(0);
+      expect(amount).to.equal(0);
+      expect(saleToken).to.equal(this.Erc20.target);
+      expect(seller).to.equal(this.signers.admin.address);
+      expect(startPrice).to.equal(10000);
+      expect(reservePrice).to.equal(250);
+      expect(_feeBasisPoints).to.equal(this.feeBasisPoints);
+      expect(royaltyRecipient).to.equal(this.signers.royaltyRecipient.address);
+      expect(royaltyBasisPoints).to.equal(this.royaltyBasisPoints);
+      expect(duration).to.equal(this.duration);
+      expect(startTime).to.equal(await hre.network.provider.send("evm_getBlockTimestamp"));
+      expect(sold).to.equal(false);
+    });
     it("should transfer NFT to Bulbafloor contract");
     it("should should emit AuctionCreated() with correct parameters");
   });

@@ -12,6 +12,8 @@ describe("Unit tests", function () {
     const signers = await ethers.getSigners();
     this.signers.admin = signers[0];
     this.signers.feeCollector = signers[1];
+    this.signers.royaltyRecipient = signers[2];
+    this.signers.buyer = signers[3];
 
     this.loadFixture = loadFixture;
   });

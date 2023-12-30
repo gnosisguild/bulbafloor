@@ -35,17 +35,17 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         erc1155
     }
 
-    uint16 constant DENOMINATOR = 10000;
+    uint16 public constant DENOMINATOR = 10000;
 
-    uint256 private nextAuctionId;
+    uint256 public nextAuctionId;
     mapping(uint256 auctionId => Auction auction) public auctions;
     address public feeCollector;
     uint16 public feeBasisPoints;
 
-    error InvalidPercentage();
-    error InvalidFeeCollector();
-    error durationCannotBeZero();
-    error royaltyTooHigh();
+    error FeeBasisPointsGreaterThanDenominator();
+    error FeeCollectorAlreadySetToThisAddress();
+    error DurationCannotBeZero();
+    error RoyaltyBasisPointsPlusFeeBasisPointsGreaterThanDenominator(); // 😅
     error AuctionDoesNotExist();
     error AuctionClosed();
     error OnlySellerCanCancel();
@@ -63,7 +63,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
     );
     event AuctionSuccessful(uint256 auctionId, uint256 totalPrice, address winner);
     event AuctionCancelled(uint256 auctionId);
-    event feeBasisPointsSet(uint256 feeBasisPoints);
+    event FeeBasisPointsSet(uint256 feeBasisPoints);
     event FeeCollectorSet(address feeCollector);
 
     constructor(address initialOwner, uint16 _feeBasisPoints, address _feeCollector) {
@@ -79,15 +79,15 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
     }
 
     function setFeeBasisPoints(uint16 _feeBasisPoints) external onlyOwner {
-        if (_feeBasisPoints > DENOMINATOR) revert InvalidPercentage();
+        if (_feeBasisPoints > DENOMINATOR) revert FeeBasisPointsGreaterThanDenominator();
 
         feeBasisPoints = _feeBasisPoints;
 
-        emit feeBasisPointsSet(_feeBasisPoints);
+        emit FeeBasisPointsSet(_feeBasisPoints);
     }
 
     function setFeeCollector(address _feeCollector) external onlyOwner {
-        if (_feeCollector == feeCollector) revert InvalidFeeCollector();
+        if (_feeCollector == feeCollector) revert FeeCollectorAlreadySetToThisAddress();
 
         feeCollector = _feeCollector;
 
@@ -113,6 +113,47 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         return (auction.tokenContract, currentPrice);
     }
 
+    function getAuction(
+        uint256 auctionId
+    )
+        external
+        view
+        returns (
+            address tokenContract,
+            uint256 tokenId,
+            TokenType tokenType,
+            uint256 amount,
+            address saleToken,
+            address seller,
+            uint256 startPrice,
+            uint256 reservePrice,
+            uint16 _feeBasisPoints,
+            address royaltyRecipient,
+            uint16 royaltyBasisPoints,
+            uint256 duration,
+            uint256 startTime,
+            bool sold
+        )
+    {
+        Auction storage auction = auctions[checkAuction(auctionId)];
+        return (
+            auction.tokenContract,
+            auction.tokenId,
+            auction.tokenType,
+            auction.amount,
+            auction.saleToken,
+            auction.seller,
+            auction.startPrice,
+            auction.reservePrice,
+            auction.feeBasisPoints,
+            auction.royaltyRecipient,
+            auction.royaltyBasisPoints,
+            auction.duration,
+            auction.startTime,
+            auction.sold
+        );
+    }
+
     function deleteAuction(uint256 auctionId) internal {
         delete auctions[auctionId];
     }
@@ -129,8 +170,9 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         uint16 royaltyBasisPoints,
         uint256 duration
     ) external {
-        if (duration == 0) revert durationCannotBeZero();
-        if (royaltyBasisPoints + feeBasisPoints > DENOMINATOR) revert royaltyTooHigh();
+        if (duration == 0) revert DurationCannotBeZero();
+        if (royaltyBasisPoints + feeBasisPoints > DENOMINATOR)
+            revert RoyaltyBasisPointsPlusFeeBasisPointsGreaterThanDenominator();
 
         uint256 auctionId = nextAuctionId;
         nextAuctionId++;

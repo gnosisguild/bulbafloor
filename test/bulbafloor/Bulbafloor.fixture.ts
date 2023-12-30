@@ -31,7 +31,18 @@ export async function deployBulbafloorFixture(): Promise<{ bulbafloor: Bulbafloo
   await Erc1155.mintBatch(admin.address, [0, 1], [1, 1], "0x");
 
   await Erc721.approve(bulbafloor.target, 0);
-  await bulbafloor.createAuction(Erc721.target, 0, 0, 0, Erc20.target, 10000, 10, royaltyRecipient.address, 100, 100);
+  await bulbafloor.createAuction(
+    Erc721.target,
+    0,
+    0,
+    0,
+    Erc20.target,
+    10000,
+    250,
+    royaltyRecipient.address,
+    100,
+    10000,
+  );
 
   return { bulbafloor, feeBasisPoints, feeCollector, royaltyRecipient, buyer, Erc20, Erc721, Erc1155 };
 }
