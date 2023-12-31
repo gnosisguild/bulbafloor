@@ -8,8 +8,6 @@ task("task:buyNFT")
 
     const Bulbafloor = await deployments.get("Bulbafloor");
 
-    const signers = await ethers.getSigners();
-
     const bulbafloor = await ethers.getContractAt("Bulbafloor", Bulbafloor.address);
 
     await bulbafloor.buy(taskArguments.greeting);

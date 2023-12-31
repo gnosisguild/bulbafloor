@@ -30,6 +30,7 @@ describe("Unit tests", function () {
       this.Erc20 = Erc20;
       this.Erc721 = Erc721;
       this.Erc1155 = Erc1155;
+      this.denominator = await bulbafloor.DENOMINATOR();
     });
 
     shouldBehaveLikeBulbafloor();
