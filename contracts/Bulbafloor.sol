@@ -1,3 +1,35 @@
+/* Bulbafloor 🌷
+                                           /
+                        _,.------....___,.' ',.-.
+                     ,-'          _,.--"        |
+                   ,'         _.-'              .
+                  /   ,     ,'                   `
+                 .   /     /                     ``.
+                 |  |     .                       \.\
+       ____      |___._.  |       __               \ `.
+     .'    `---""       ``"-.--"'`  \               .  \
+    .  ,            __               `              |   .
+    `,'         ,-"'  .               \             |    L
+   ,'          '    _.'                -._          /    |
+  ,`-.    ,".   `--'                      >.      ,'     |
+ . .'\'   `-'       __    ,  ,-.         /  `.__.-      ,'
+ ||:, .           ,'  ;  /  / \ `        `.    .      .'/
+ j|:D  \          `--'  ' ,'_  . .         `.__, \   , /
+/ L:_  |                 .  "' :_;                `.'.'
+.    ""'                  """""'                    V
+ `.                                 .    `.   _,..  `
+   `,_   .    .                _,-'/    .. `,'   __  `
+    ) \`._        ___....----"'  ,'   .'  \ |   '  \  .
+   /   `. "`-.--"'         _,' ,'     `---' |    `./  |
+  .   _  `""'--.._____..--"   ,             '         |
+  | ." `. `-.                /-.           /          ,
+  | `._.'    `,_            ;  /         ,'          .
+ .'          /| `-.        . ,'         ,           ,
+ '-.__ __ _,','    '`-..___;-...__   ,.'\ ____.___.'
+ `"^--'..'   '-`-^-'"--    `-^-'`.''"""""`.,^.`.--'
+ Made with ❤️ by Gnosis Guild
+ */
+
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity ^0.8.20;
 
@@ -10,6 +42,9 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
+/// @title Bulbafloor 🌷
+/// @notice A contract for selling ERC721 and ERC1155 tokens for ERC20 tokens via dutch auction
+/// @author Auryn Macmillan (email: auryn@gnosisguild.org) (twitter: @auryn_macmillan) (github: auryn-macmillan)
 contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721Holder {
     using SafeERC20 for IERC20;
 
@@ -27,7 +62,6 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         uint16 royaltyBasisPoints;
         uint256 duration;
         uint256 startTime;
-        bool sold;
     }
 
     enum TokenType {
@@ -39,11 +73,11 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
 
     uint256 public nextAuctionId;
     mapping(uint256 auctionId => Auction auction) public auctions;
-    address public feeCollector;
+    address public feeRecipient;
     uint16 public feeBasisPoints;
 
     error FeeBasisPointsGreaterThanDenominator(uint16 denominator, uint16 feeBasisPoints);
-    error FeeCollectorAlreadySetToThisAddress(address feeCollector);
+    error FeeRecipientAlreadySetToThisAddress(address feeRecipient);
     error DurationCannotBeZero();
     error RoyaltyBasisPointsPlusFeeBasisPointsGreaterThanDenominator(
         uint16 denominator,
@@ -54,7 +88,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
     error OnlySellerCanCancel(address seller);
     error InvalidLengths();
 
-    event Initialized(address indexed owner, uint16 feeBasisPoints, address indexed feeCollector);
+    event Initialized(address indexed owner, uint16 feeBasisPoints, address indexed feeRecipient);
     event AuctionCreated(
         uint256 auctionId,
         address indexed tokenContract,
@@ -78,20 +112,31 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
     );
     event AuctionCancelled(uint256 auctionId, address indexed seller, address indexed tokenContract, uint256 tokenId);
     event FeeBasisPointsSet(uint256 feeBasisPoints);
-    event FeeCollectorSet(address feeCollector);
+    event FeeRecipientSet(address feeRecipient);
 
-    constructor(address initialOwner, uint16 _feeBasisPoints, address _feeCollector) {
-        initialize(initialOwner, _feeBasisPoints, _feeCollector);
+    /// @notice Initializes the contract
+    /// @param initialOwner Address to be set as owner of the contract
+    /// @param _feeBasisPoints Fee basis points to be set
+    /// @param _feeRecipient Address to be set as fee recipient
+    constructor(address initialOwner, uint16 _feeBasisPoints, address _feeRecipient) {
+        initialize(initialOwner, _feeBasisPoints, _feeRecipient);
     }
 
-    function initialize(address initialOwner, uint16 _feeBasisPoints, address _feeCollector) public initializer {
+    /// @notice Initializes the contract
+    /// @param initialOwner Address to be set as owner of the contract
+    /// @param _feeBasisPoints Fee basis points to be set
+    /// @param _feeRecipient Address to be set as fee collector
+    function initialize(address initialOwner, uint16 _feeBasisPoints, address _feeRecipient) public initializer {
         __Ownable_init(initialOwner);
         feeBasisPoints = _feeBasisPoints;
-        feeCollector = _feeCollector;
+        feeRecipient = _feeRecipient;
 
-        emit Initialized(initialOwner, _feeBasisPoints, feeCollector);
+        emit Initialized(initialOwner, _feeBasisPoints, feeRecipient);
     }
 
+    /// @notice Sets the fee basis points
+    /// @dev Only owner can call this function
+    /// @param _feeBasisPoints Fee basis points to be set
     function setFeeBasisPoints(uint16 _feeBasisPoints) external onlyOwner {
         if (_feeBasisPoints > DENOMINATOR) revert FeeBasisPointsGreaterThanDenominator(DENOMINATOR, _feeBasisPoints);
 
@@ -100,19 +145,31 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         emit FeeBasisPointsSet(_feeBasisPoints);
     }
 
-    function setFeeCollector(address _feeCollector) external onlyOwner {
-        if (_feeCollector == feeCollector) revert FeeCollectorAlreadySetToThisAddress(_feeCollector);
+    /// @notice Sets the fee recipient
+    /// @dev Only owner can call this function
+    /// @param _feeRecipient Address to be set as fee recipient
+    function setFeeRecipient(address _feeRecipient) external onlyOwner {
+        if (_feeRecipient == feeRecipient) revert FeeRecipientAlreadySetToThisAddress(_feeRecipient);
 
-        feeCollector = _feeCollector;
+        feeRecipient = _feeRecipient;
 
-        emit FeeCollectorSet(_feeCollector);
+        emit FeeRecipientSet(_feeRecipient);
     }
 
+    /// @notice Returns the auction id
+    /// @dev Throws if auction does not exist
+    /// @param auctionId Auction id to be checked
+    /// @return uint256 Auction id
     function checkAuction(uint256 auctionId) public view returns (uint256) {
         if (auctions[auctionId].tokenContract == address(0)) revert AuctionDoesNotExist(auctionId);
         return auctionId;
     }
 
+    /// @notice Returns the current price of the auction
+    /// @dev Throws if auction does not exist
+    /// @param auctionId Auction id to be checked
+    /// @return address Address of the token contract
+    /// @return uint256 Current price of the auction
     function getCurrentPrice(uint256 auctionId) public view returns (address, uint256) {
         Auction storage auction = auctions[checkAuction(auctionId)];
 
@@ -127,6 +184,22 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         return (auction.tokenContract, currentPrice);
     }
 
+    /// @notice Returns the auction details
+    /// @dev Throws if auction does not exist
+    /// @param auctionId Auction id to be checked
+    /// @return tokenContract Address of the token contract
+    /// @return tokenId Id of the token being auctioned
+    /// @return tokenType Type of the token being auctioned (0: ERC721, 1: ERC1155)
+    /// @return amount Amount of the token being auctioned
+    /// @return saleToken Address of the token that the auction is denominated in
+    /// @return seller Address of the seller
+    /// @return startPrice Starting price of the auction
+    /// @return reservePrice Reserve price of the auction
+    /// @return _feeBasisPoints Fee basis points of the auction
+    /// @return royaltyRecipient Address of the royalty recipient
+    /// @return royaltyBasisPoints Royalty basis points of the auction
+    /// @return duration Duration of the auction
+    /// @return startTime Start time of the auction
     function getAuction(
         uint256 auctionId
     )
@@ -145,8 +218,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
             address royaltyRecipient,
             uint16 royaltyBasisPoints,
             uint256 duration,
-            uint256 startTime,
-            bool sold
+            uint256 startTime
         )
     {
         Auction storage auction = auctions[checkAuction(auctionId)];
@@ -163,15 +235,29 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
             auction.royaltyRecipient,
             auction.royaltyBasisPoints,
             auction.duration,
-            auction.startTime,
-            auction.sold
+            auction.startTime
         );
     }
 
+    /// @notice Deletes the auction
+    /// @param auctionId Auction id to be deleted
     function deleteAuction(uint256 auctionId) internal {
         delete auctions[auctionId];
     }
 
+    /// @notice Creates an auction
+    /// @dev Throws if duration is zero
+    /// @dev Throws if royalty basis points plus fee basis points is greater than denominator
+    /// @param tokenContract Address of the token contract
+    /// @param tokenId Id of the token being auctioned
+    /// @param tokenType Type of the token being auctioned (0: ERC721, 1: ERC1155)
+    /// @param amount Amount of the token being auctioned
+    /// @param saleToken Address of the token that the auction is denominated in
+    /// @param startPrice Starting price of the auction
+    /// @param reservePrice Reserve price of the auction
+    /// @param royaltyRecipient Address of the royalty recipient
+    /// @param royaltyBasisPoints Royalty basis points of the auction
+    /// @param duration Duration of the auction
     function createAuction(
         address tokenContract,
         uint256 tokenId,
@@ -183,7 +269,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         address royaltyRecipient,
         uint16 royaltyBasisPoints,
         uint256 duration
-    ) external {
+    ) external returns (uint256 auctionId) {
         if (duration == 0) revert DurationCannotBeZero();
         if (royaltyBasisPoints + feeBasisPoints > DENOMINATOR)
             revert RoyaltyBasisPointsPlusFeeBasisPointsGreaterThanDenominator(
@@ -192,7 +278,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
                 royaltyBasisPoints
             );
 
-        uint256 auctionId = nextAuctionId;
+        auctionId = nextAuctionId;
         nextAuctionId++;
 
         auctions[auctionId] = Auction({
@@ -208,8 +294,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
             royaltyRecipient: royaltyRecipient,
             royaltyBasisPoints: royaltyBasisPoints,
             duration: duration,
-            startTime: block.timestamp,
-            sold: false
+            startTime: block.timestamp
         });
 
         if (tokenType == TokenType.erc721) {
@@ -231,6 +316,9 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         );
     }
 
+    /// @notice Buys the token in the given auction for the current price
+    /// @dev Throws if auction does not exist
+    /// @param auctionId Auction id to be bought
     function buy(uint256 auctionId) external {
         Auction storage auction = auctions[checkAuction(auctionId)];
 
@@ -250,7 +338,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
 
         if (_feeBasisPoints != 0) {
             fee = (currentPrice * _feeBasisPoints) / DENOMINATOR;
-            IERC20(saleToken).safeTransferFrom(msg.sender, feeCollector, fee);
+            IERC20(saleToken).safeTransferFrom(msg.sender, feeRecipient, fee);
         }
 
         if (royaltyBasisPoints != 0) {
@@ -268,6 +356,9 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         emit AuctionSuccessful(auctionId, seller, msg.sender, tokenContract, tokenId, amount, saleToken, currentPrice);
     }
 
+    /// @notice Cancels the given auction
+    /// @dev Throws if sender is not the seller
+    /// @param auctionId Auction id to be cancelled
     function cancelAuction(uint256 auctionId) external {
         Auction storage auction = auctions[checkAuction(auctionId)];
         address seller = auction.seller;
@@ -286,24 +377,34 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         emit AuctionCancelled(auctionId, seller, tokenContract, tokenId);
     }
 
+    /// @notice Recovers native tokens sent to the contract
     function recoverNativeTokens() external {
-        payable(feeCollector).transfer(address(this).balance);
+        payable(feeRecipient).transfer(address(this).balance);
     }
 
+    /// @notice Recovers ERC20 tokens sent to the contract
+    /// @param tokenContracts Addresses of the ERC20 tokens to be recovered
     function recoverERC20tokens(address[] memory tokenContracts) external {
         for (uint256 i = 0; i < tokenContracts.length; i++) {
             uint256 amount = IERC20(tokenContracts[i]).balanceOf(address(this));
-            IERC20(tokenContracts[i]).safeTransfer(feeCollector, amount);
+            IERC20(tokenContracts[i]).safeTransfer(feeRecipient, amount);
         }
     }
 
+    /// @notice Recovers ERC721 tokens sent to the contract
+    /// @dev Throws if sender is not the owner
+    /// @dev Throws if tokenContracts and tokenIds have different lengths
+    /// @param tokenContracts Addresses of the ERC721 tokens to be recovered
     function recoverERC721tokens(address[] calldata tokenContracts, uint256[] calldata tokenIds) external onlyOwner {
         if (tokenContracts.length != tokenIds.length) revert InvalidLengths();
         for (uint256 i = 0; i < tokenContracts.length; i++) {
-            IERC721(tokenContracts[i]).safeTransferFrom(address(this), feeCollector, tokenIds[i]);
+            IERC721(tokenContracts[i]).safeTransferFrom(address(this), feeRecipient, tokenIds[i]);
         }
     }
 
+    /// @notice Recovers ERC1155 tokens sent to the contract
+    /// @dev Throws if sender is not the owner
+    /// @dev Throws if tokenContracts, tokenIds, or amounts have different lengths
     function recoverERC1155tokens(
         address[] calldata tokenContracts,
         uint256[] calldata tokenIds,
@@ -312,7 +413,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         if (tokenContracts.length != tokenIds.length || tokenContracts.length != amounts.length)
             revert InvalidLengths();
         for (uint256 i = 0; i < tokenContracts.length; i++) {
-            IERC1155(tokenContracts[i]).safeTransferFrom(address(this), feeCollector, tokenIds[i], amounts[i], "");
+            IERC1155(tokenContracts[i]).safeTransferFrom(address(this), feeRecipient, tokenIds[i], amounts[i], "");
         }
     }
 }

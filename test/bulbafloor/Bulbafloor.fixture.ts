@@ -7,12 +7,12 @@ export async function deployBulbafloorFixture(): Promise<{ bulbafloor: Bulbafloo
   const signers = await ethers.getSigners();
   const admin = signers[0];
   const feeBasisPoints = 100;
-  const feeCollector = signers[1];
+  const feeRecipient = signers[1];
   const royaltyRecipient = signers[2];
   const buyer = signers[3];
 
   const bulbafloorFactory = await ethers.getContractFactory("Bulbafloor");
-  const bulbafloor = await bulbafloorFactory.connect(admin).deploy(admin, feeBasisPoints, feeCollector.address);
+  const bulbafloor = await bulbafloorFactory.connect(admin).deploy(admin, feeBasisPoints, feeRecipient.address);
   await bulbafloor.waitForDeployment();
 
   const Erc20Factory = await ethers.getContractFactory("TestERC20");
@@ -60,5 +60,5 @@ export async function deployBulbafloorFixture(): Promise<{ bulbafloor: Bulbafloo
     10000,
   );
 
-  return { bulbafloor, feeBasisPoints, feeCollector, royaltyRecipient, buyer, Erc20, Erc721, Erc1155 };
+  return { bulbafloor, feeBasisPoints, feeRecipient, royaltyRecipient, buyer, Erc20, Erc721, Erc1155 };
 }

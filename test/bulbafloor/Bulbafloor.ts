@@ -11,7 +11,7 @@ describe("Unit tests", function () {
 
     const signers = await ethers.getSigners();
     this.signers.admin = signers[0];
-    this.signers.feeCollector = signers[1];
+    this.signers.feeRecipient = signers[1];
     this.signers.royaltyRecipient = signers[2];
     this.signers.buyer = signers[3];
 
@@ -20,11 +20,11 @@ describe("Unit tests", function () {
 
   describe("Bulbafloor", function () {
     beforeEach(async function () {
-      const { bulbafloor, feeBasisPoints, feeCollector, royaltyRecipient, buyer, Erc20, Erc721, Erc1155 } =
+      const { bulbafloor, feeBasisPoints, feeRecipient, royaltyRecipient, buyer, Erc20, Erc721, Erc1155 } =
         await this.loadFixture(deployBulbafloorFixture);
       this.bulbafloor = bulbafloor;
       this.feeBasisPoints = feeBasisPoints;
-      this.feeCollector = feeCollector;
+      this.feeRecipient = feeRecipient;
       this.royaltyRecipient = royaltyRecipient;
       this.buyer = buyer;
       this.Erc20 = Erc20;
