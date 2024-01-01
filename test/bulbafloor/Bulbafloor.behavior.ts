@@ -1,5 +1,4 @@
 import { expect } from "chai";
-import { log } from "console";
 import hre, { ethers } from "hardhat";
 
 function getBlockTimestamp(): Promise<bigint> {
