@@ -2,19 +2,19 @@ import { expect } from "chai";
 import { log } from "console";
 import hre, { ethers } from "hardhat";
 
-function getBlockTimestamp(): Promise<number> {
-  return hre.network.provider.send("eth_getBlockByNumber", ["latest", false]).then((x) => Number(x.timestamp));
+function getBlockTimestamp(): Promise<bigint> {
+  return hre.network.provider.send("eth_getBlockByNumber", ["latest", false]).then((x) => BigInt(x.timestamp));
 }
 
 async function calculatePriceAtTimestamp(
-  timestamp: number,
-  startPrice: number,
-  duration: number,
-  startTime: number,
-): Promise<number> {
-  const elapsedTime = timestamp - Number(startTime);
-  const remainingTime = Number(duration) - elapsedTime;
-  return (remainingTime * Number(startPrice)) / Number(duration);
+  timestamp: bigint,
+  startPrice: bigint,
+  duration: bigint,
+  startTime: bigint,
+): Promise<bigint> {
+  const elapsedTime = timestamp - startTime;
+  const remainingTime = duration - elapsedTime;
+  return (remainingTime * startPrice) / duration;
 }
 
 export function shouldBehaveLikeBulbafloor(): void {
@@ -54,9 +54,9 @@ export function shouldBehaveLikeBulbafloor(): void {
     });
     it("should return reserve price if calculated current price is lower than reserve price", async function () {
       const [, , , , , , startPrice, reservePrice, , , , duration] = await this.bulbafloor.getAuction(0);
-      await hre.network.provider.send("evm_increaseTime", [
-        ((Number(startPrice) - Number(reservePrice)) / Number(startPrice)) * Number(duration) + 1,
-      ]);
+      const timeIncrement: bigint =
+        ((BigInt(startPrice) - BigInt(reservePrice)) * BigInt(duration)) / BigInt(startPrice) + 1n;
+      await hre.network.provider.send("evm_increaseTime", [Number(timeIncrement.toString())]);
       await hre.network.provider.send("evm_mine");
       const [, currentPrice] = await this.bulbafloor.getCurrentPrice(0);
       expect(currentPrice).to.equal(reservePrice);
@@ -275,7 +275,7 @@ export function shouldBehaveLikeBulbafloor(): void {
     });
   });
 
-  describe.only("buy()", function () {
+  describe("buy()", function () {
     it("should revert if item has already sold", async function () {
       expect(await this.bulbafloor.connect(this.signers.buyer).buy(0));
       await expect(this.bulbafloor.connect(this.signers.buyer).buy(0))
@@ -289,39 +289,44 @@ export function shouldBehaveLikeBulbafloor(): void {
         .withArgs(0);
     });
     it("should transfer the correct fee to feeCollector", async function () {
-      await this.bulbafloor.connect(this.signers.buyer).buy(0);
-      expect(await this.Erc20.balanceOf(this.signers.feeCollector.address)).to.equal(99);
+      const [, , , , , , startPrice, , feeBasisPoints, , , duration, startTime] = await this.bulbafloor.getAuction(0);
+      const nextBlockTimestamp: bigint = BigInt(await getBlockTimestamp()) + 1n;
+      const expectedPrice: bigint = BigInt(
+        await calculatePriceAtTimestamp(nextBlockTimestamp, startPrice, duration, startTime),
+      );
+      const fee = (expectedPrice * feeBasisPoints) / this.denominator;
+
+      expect(await this.bulbafloor.connect(this.signers.buyer).buy(0));
+      expect(await this.Erc20.balanceOf(this.signers.feeCollector.address)).to.equal(fee);
     });
     it("should transfer the correct royalty to the royaltyRecipient", async function () {
-      await this.bulbafloor.connect(this.signers.buyer).buy(0);
-      expect(await this.Erc20.balanceOf(this.signers.royaltyRecipient.address)).to.equal(99);
+      const [, , , , , , startPrice, , , , royaltyBasisPoints, duration, startTime] =
+        await this.bulbafloor.getAuction(0);
+      const nextBlockTimestamp: bigint = BigInt(await getBlockTimestamp()) + 1n;
+      const expectedPrice: bigint = BigInt(
+        await calculatePriceAtTimestamp(nextBlockTimestamp, startPrice, duration, startTime),
+      );
+      const royalty = (expectedPrice * royaltyBasisPoints) / this.denominator;
+
+      expect(await this.bulbafloor.connect(this.signers.buyer).buy(0));
+      expect(await this.Erc20.balanceOf(this.signers.royaltyRecipient.address)).to.equal(royalty);
     });
     it("should transfer the correct amount to the seller", async function () {
       const previousBalance: bigint = await this.Erc20.balanceOf(this.signers.admin.address);
       const [, , , , , , startPrice, , feeBasisPoints, , royaltyBasisPoints, duration, startTime] =
         await this.bulbafloor.getAuction(0);
-      const [, currentPrice] = await this.bulbafloor.getCurrentPrice(0);
-      const expectedPrice = await calculatePriceAtTimestamp(await getBlockTimestamp(), startPrice, duration, startTime);
-      const fee = (currentPrice * feeBasisPoints) / this.denominator;
-      const royalty = (currentPrice * royaltyBasisPoints) / this.denominator;
-      const proceeds = currentPrice - fee - royalty;
-      const expectedBalance = previousBalance + proceeds;
-      log("previousBalance:", previousBalance);
-      log("currentPrice:", currentPrice);
-      log("expectedPrice:", expectedPrice);
-      log("proceeds:", proceeds);
-      log("expectedBalance:", expectedBalance);
+      const nextBlockTimestamp: bigint = BigInt(await getBlockTimestamp()) + 1n;
+      const expectedPrice: bigint = BigInt(
+        await calculatePriceAtTimestamp(nextBlockTimestamp, startPrice, duration, startTime),
+      );
+      const fee = (expectedPrice * feeBasisPoints) / this.denominator;
+      const royalty = (expectedPrice * royaltyBasisPoints) / this.denominator;
+      const proceeds = expectedPrice - fee - royalty;
 
-      await this.bulbafloor.connect(this.signers.buyer).buy(0);
-
-      const royaltyRecipientBalance = await this.Erc20.balanceOf(this.signers.royaltyRecipient.address);
-      log("royaltyRecipientBalance:", royaltyRecipientBalance);
-      const feeCollectorBalance = await this.Erc20.balanceOf(this.signers.feeCollector.address);
-      log("feeCollectorBalance:", feeCollectorBalance);
-      const totalFees = royaltyRecipientBalance + feeCollectorBalance;
-      log("totalFees:", totalFees);
-
+      expect(await this.bulbafloor.connect(this.signers.buyer).buy(0));
       expect(await this.Erc20.balanceOf(this.signers.admin.address)).to.equal(previousBalance + proceeds);
+      expect(await this.Erc20.balanceOf(this.signers.feeCollector.address)).to.equal(fee);
+      expect(await this.Erc20.balanceOf(this.signers.royaltyRecipient.address)).to.equal(royalty);
     });
     it("should transfer the NFT to the buyer", async function () {
       await this.bulbafloor.connect(this.signers.buyer).buy(0);
@@ -331,6 +336,11 @@ export function shouldBehaveLikeBulbafloor(): void {
       expect(await this.Erc1155.balanceOf(this.signers.buyer.address, 0)).to.equal(1);
     });
     it("should emit AuctionSuccessful() with correct parameters", async function () {
+      let [, , , , , , startPrice, , , , , duration, startTime] = await this.bulbafloor.getAuction(0);
+      let nextBlockTimestamp: bigint = BigInt(await getBlockTimestamp()) + 1n;
+      let expectedPrice: bigint = BigInt(
+        await calculatePriceAtTimestamp(nextBlockTimestamp, startPrice, duration, startTime),
+      );
       await expect(this.bulbafloor.connect(this.signers.buyer).buy(0))
         .to.emit(this.bulbafloor, "AuctionSuccessful")
         .withArgs(
@@ -341,9 +351,12 @@ export function shouldBehaveLikeBulbafloor(): void {
           0,
           1,
           this.Erc20.target,
-          9997,
+          expectedPrice,
         );
 
+      [, , , , , , startPrice, , , , , duration, startTime] = await this.bulbafloor.getAuction(1);
+      nextBlockTimestamp = BigInt(await getBlockTimestamp()) + 1n;
+      expectedPrice = BigInt(await calculatePriceAtTimestamp(nextBlockTimestamp, startPrice, duration, startTime));
       await expect(this.bulbafloor.connect(this.signers.buyer).buy(1))
         .to.emit(this.bulbafloor, "AuctionSuccessful")
         .withArgs(
@@ -354,7 +367,7 @@ export function shouldBehaveLikeBulbafloor(): void {
           0,
           1,
           this.Erc20.target,
-          9998,
+          expectedPrice,
         );
     });
   });

@@ -18,8 +18,8 @@ export async function deployBulbafloorFixture(): Promise<{ bulbafloor: Bulbafloo
   const Erc20Factory = await ethers.getContractFactory("TestERC20");
   const Erc20 = await Erc20Factory.connect(admin).deploy(admin.address);
   await Erc20.waitForDeployment();
-  await Erc20.mint(buyer.address, 1000000);
-  await Erc20.connect(buyer).approve(bulbafloor.target, 10000000);
+  await Erc20.mint(buyer.address, ethers.parseEther("1"));
+  await Erc20.connect(buyer).approve(bulbafloor.target, ethers.parseEther("1"));
 
   const Erc721Factory = await ethers.getContractFactory("TestERC721");
   const Erc721 = await Erc721Factory.connect(admin).deploy(admin.address);
@@ -39,8 +39,8 @@ export async function deployBulbafloorFixture(): Promise<{ bulbafloor: Bulbafloo
     0,
     0,
     Erc20.target,
-    10000,
-    250,
+    ethers.parseEther("1"),
+    ethers.parseEther("0.25"),
     royaltyRecipient.address,
     100,
     10000,

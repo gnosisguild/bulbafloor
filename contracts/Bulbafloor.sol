@@ -258,7 +258,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
             IERC20(saleToken).safeTransferFrom(msg.sender, royaltyRecipient, royalty);
         }
 
-        IERC20(saleToken).safeTransferFrom(msg.sender, seller, currentPrice - fee);
+        IERC20(saleToken).safeTransferFrom(msg.sender, seller, (currentPrice - fee) - royalty);
 
         if (tokenType == TokenType.erc721) {
             IERC721(tokenContract).safeTransferFrom(address(this), msg.sender, tokenId);
