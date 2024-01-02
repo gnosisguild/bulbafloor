@@ -1,8 +1,8 @@
-import { task } from "hardhat/config";
+import { task, types } from "hardhat/config";
 import type { TaskArguments } from "hardhat/types";
 
 task("task:buyNFT")
-  .addParam("auction", "ID of the auction to buy")
+  .addParam("auction", "ID of the auction to buy", undefined, types.int, false)
   .setAction(async function (taskArguments: TaskArguments, hre) {
     const { ethers, deployments } = hre;
 
@@ -10,7 +10,7 @@ task("task:buyNFT")
 
     const bulbafloor = await ethers.getContractAt("Bulbafloor", Bulbafloor.address);
 
-    await bulbafloor.buy(taskArguments.greeting);
+    await bulbafloor.buy(taskArguments.auction);
 
     console.log("NFT purchased 🎉");
   });

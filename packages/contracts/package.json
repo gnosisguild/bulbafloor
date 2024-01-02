@@ -61,6 +61,7 @@
     "access": "public"
   },
   "scripts": {
+    "hardhat": "hardhat",
     "clean": "rimraf ./artifacts ./cache ./coverage ./types ./coverage.json && pnpm typechain",
     "build": "cross-env TS_NODE_TRANSPILE_ONLY=true hardhat compile",
     "coverage": "hardhat coverage --solcoverjs ./.solcover.js --temp artifacts --testfiles \"test/**/*.ts\" && pnpm typechain",
@@ -72,7 +73,7 @@
     "prettier:check": "prettier --check \"**/*.{js,json,md,sol,ts,yml}\"",
     "prettier:write": "prettier --write \"**/*.{js,json,md,sol,ts,yml}\"",
     "task:deployBulbafloor": "hardhat task:deployBulbafloor",
-    "task:setGreeting": "hardhat task:setGreeting",
+    "task:buyNFT": "hardhat task:buyNFT",
     "test": "hardhat test",
     "typechain": "cross-env TS_NODE_TRANSPILE_ONLY=true hardhat typechain"
   },
