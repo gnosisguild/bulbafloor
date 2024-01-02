@@ -18,13 +18,13 @@ async function calculatePriceAtTimestamp(
 
 export function shouldBehaveLikeBulbafloor(): void {
   describe("constructor", function () {
-    it("should deploy", async function () {
+    it("deploys", async function () {
       expect(await this.bulbafloor.owner()).to.equal(this.signers.admin.address);
     });
   });
 
   describe("initialize()", function () {
-    it("should correctly initialize parameters", async function () {
+    it("correctlys initialize parameters", async function () {
       expect(await this.bulbafloor.owner()).to.equal(this.signers.admin.address);
       expect(await this.bulbafloor.feeBasisPoints()).to.equal(this.feeBasisPoints);
       expect(await this.bulbafloor.feeRecipient()).to.equal(this.signers.feeRecipient.address);
@@ -32,26 +32,26 @@ export function shouldBehaveLikeBulbafloor(): void {
   });
 
   describe("checkAuction()", function () {
-    it("should revert if auction does not exist", async function () {
+    it("reverts if auction does not exist", async function () {
       await expect(this.bulbafloor.checkAuction(123456)).to.be.revertedWithCustomError(
         this.bulbafloor,
         "AuctionDoesNotExist",
       );
     });
-    it("should return correct auction", async function () {
+    it("returns correct auction", async function () {
       expect(await this.bulbafloor.checkAuction(0)).to.equal(0);
     });
   });
 
   describe("getCurrentPrice()", function () {
-    it("should return reserve price if elapsed time exceeds duration", async function () {
+    it("returns reserve price if elapsed time exceeds duration", async function () {
       const [, , , , , , , reservePrice, , , , duration] = await this.bulbafloor.getAuction(0);
       await hre.network.provider.send("evm_increaseTime", [Number(duration) + 1]);
       await hre.network.provider.send("evm_mine");
       const [, currentPrice] = await this.bulbafloor.getCurrentPrice(0);
       expect(currentPrice).to.equal(reservePrice);
     });
-    it("should return reserve price if calculated current price is lower than reserve price", async function () {
+    it("returns reserve price if calculated current price is lower than reserve price", async function () {
       const [, , , , , , startPrice, reservePrice, , , , duration] = await this.bulbafloor.getAuction(0);
       const timeIncrement: bigint =
         ((BigInt(startPrice) - BigInt(reservePrice)) * BigInt(duration)) / BigInt(startPrice) + 1n;
@@ -60,7 +60,7 @@ export function shouldBehaveLikeBulbafloor(): void {
       const [, currentPrice] = await this.bulbafloor.getCurrentPrice(0);
       expect(currentPrice).to.equal(reservePrice);
     });
-    it("should return calculated current price if it is higher than reserve price", async function () {
+    it("returns calculated current price if it is higher than reserve price", async function () {
       const [, , , , , , startPrice, , , , , duration, startTime] = await this.bulbafloor.getAuction(0);
       await hre.network.provider.send("evm_increaseTime", [Number(duration) / 2]);
       await hre.network.provider.send("evm_mine");
@@ -71,21 +71,21 @@ export function shouldBehaveLikeBulbafloor(): void {
   });
 
   describe("setFeeBasisPoints()", function () {
-    it("should revert if called by account other than owner", async function () {
+    it("reverts if called by account other than owner", async function () {
       // await this.bulbafloor.connect(this.signers.buyer).setFeeBasisPoints(100);
       await expect(this.bulbafloor.connect(this.signers.buyer).setFeeBasisPoints(100)).to.be.reverted;
     });
-    it("should revert if _feeBasisPoints is greater than DENOMINATOR", async function () {
+    it("reverts if _feeBasisPoints is greater than DENOMINATOR", async function () {
       await expect(this.bulbafloor.setFeeBasisPoints(Number(this.denominator) + 1))
         .to.be.revertedWithCustomError(this.bulbafloor, "FeeBasisPointsGreaterThanDenominator")
         .withArgs(this.denominator, Number(this.denominator) + 1);
     });
-    it("should set feeBasisPoints", async function () {
+    it("sets feeBasisPoints", async function () {
       const newFeeBasisPoints = 100;
       await this.bulbafloor.setFeeBasisPoints(newFeeBasisPoints);
       expect(await this.bulbafloor.feeBasisPoints()).to.equal(newFeeBasisPoints);
     });
-    it("should should emit FeeBasisPoints() with correct parameters", async function () {
+    it("emits FeeBasisPoints() with correct parameters", async function () {
       const newFeeBasisPoints = 100;
       await expect(this.bulbafloor.setFeeBasisPoints(newFeeBasisPoints))
         .to.emit(this.bulbafloor, "FeeBasisPointsSet")
@@ -94,21 +94,21 @@ export function shouldBehaveLikeBulbafloor(): void {
   });
 
   describe("setFeeRecipient()", function () {
-    it("should revert if called by account other than owner, feeRecipient", async function () {
+    it("reverts if called by account other than owner, feeRecipient", async function () {
       await expect(this.bulbafloor.connect(this.signers.buyer).setFeeRecipient(this.signers.buyer.address)).to.be
         .reverted;
     });
-    it("should revert if _feeRecipient is equal to feeRecipient", async function () {
+    it("reverts if _feeRecipient is equal to feeRecipient", async function () {
       await expect(this.bulbafloor.setFeeRecipient(this.signers.feeRecipient.address))
         .to.be.revertedWithCustomError(this.bulbafloor, "FeeRecipientAlreadySetToThisAddress")
         .withArgs(this.signers.feeRecipient.address);
     });
-    it("should set feeRecipient", async function () {
+    it("sets feeRecipient", async function () {
       const newFeeRecipient = this.signers.buyer.address;
       await this.bulbafloor.setFeeRecipient(newFeeRecipient);
       expect(await this.bulbafloor.feeRecipient()).to.equal(newFeeRecipient);
     });
-    it("should should emit FeeRecipientSet() with correct parameters", async function () {
+    it("emits FeeRecipientSet() with correct parameters", async function () {
       const newFeeRecipient = this.signers.buyer.address;
       await expect(this.bulbafloor.setFeeRecipient(newFeeRecipient))
         .to.emit(this.bulbafloor, "FeeRecipientSet")
@@ -117,7 +117,7 @@ export function shouldBehaveLikeBulbafloor(): void {
   });
 
   describe("createAuction()", function () {
-    it("should revert if duration is equal to 0", async function () {
+    it("reverts if duration is equal to 0", async function () {
       await expect(
         this.bulbafloor.createAuction(
           this.Erc721.target,
@@ -133,7 +133,7 @@ export function shouldBehaveLikeBulbafloor(): void {
         ),
       ).to.be.revertedWithCustomError(this.bulbafloor, "DurationCannotBeZero()");
     });
-    it("should revert if royaltyBasisPoints + feeBasisPoints is greater than DENOMINATOR", async function () {
+    it("reverts if royaltyBasisPoints + feeBasisPoints is greater than DENOMINATOR", async function () {
       await this.Erc721.approve(this.bulbafloor.target, 1);
       await expect(
         this.bulbafloor.createAuction(
@@ -156,7 +156,7 @@ export function shouldBehaveLikeBulbafloor(): void {
           Number(this.denominator) - Number(this.feeBasisPoints) + 1,
         );
     });
-    it("should increment nextAuctionId", async function () {
+    it("increments nextAuctionId", async function () {
       const nextAuctionId = await this.bulbafloor.nextAuctionId();
       await this.Erc721.approve(this.bulbafloor.target, 1);
       await this.bulbafloor.createAuction(
@@ -173,7 +173,7 @@ export function shouldBehaveLikeBulbafloor(): void {
       );
       expect(await this.bulbafloor.nextAuctionId()).to.equal(Number(nextAuctionId) + 1);
     });
-    it("should create a new auction with correct parameters", async function () {
+    it("creates a new auction with correct parameters", async function () {
       const [
         tokenContract,
         tokenId,
@@ -203,7 +203,7 @@ export function shouldBehaveLikeBulbafloor(): void {
       expect(duration).to.equal(10000);
       expect(startTime).to.equal(await getBlockTimestamp());
     });
-    it("should return new auctionId", async function () {
+    it("returns new auctionId", async function () {
       const expectedNextAuctionId = await this.bulbafloor.nextAuctionId();
       await this.Erc721.approve(this.bulbafloor.target, 1);
       const nextAuctionId = await this.bulbafloor.createAuction.staticCall(
@@ -220,7 +220,7 @@ export function shouldBehaveLikeBulbafloor(): void {
       );
       expect(nextAuctionId).to.equal(expectedNextAuctionId);
     });
-    it("should transfer NFT to Bulbafloor contract", async function () {
+    it("transfers NFT to Bulbafloor contract", async function () {
       await this.Erc721.approve(this.bulbafloor.target, 1);
       await this.bulbafloor.createAuction(
         this.Erc721.target,
@@ -251,7 +251,7 @@ export function shouldBehaveLikeBulbafloor(): void {
       );
       expect(await this.Erc1155.balanceOf(this.bulbafloor.target, 0)).to.equal(1);
     });
-    it("should should emit AuctionCreated() with correct parameters", async function () {
+    it("emits AuctionCreated() with correct parameters", async function () {
       await this.Erc721.approve(this.bulbafloor.target, 1);
       await expect(
         this.bulbafloor.createAuction(
@@ -290,19 +290,19 @@ export function shouldBehaveLikeBulbafloor(): void {
   });
 
   describe("buy()", function () {
-    it("should revert if item has already sold", async function () {
+    it("reverts if item has already sold", async function () {
       expect(await this.bulbafloor.connect(this.signers.buyer).buy(0));
       await expect(this.bulbafloor.connect(this.signers.buyer).buy(0))
         .to.be.revertedWithCustomError(this.bulbafloor, "AuctionDoesNotExist")
         .withArgs(0);
     });
-    it("should delete auction from storage", async function () {
+    it("deletes auction from storage", async function () {
       expect(await this.bulbafloor.connect(this.signers.buyer).buy(0));
       await expect(this.bulbafloor.checkAuction(0))
         .to.be.revertedWithCustomError(this.bulbafloor, "AuctionDoesNotExist")
         .withArgs(0);
     });
-    it("should transfer the correct fee to feeRecipient", async function () {
+    it("transfers the correct fee to feeRecipient", async function () {
       const [, , , , , , startPrice, , feeBasisPoints, , , duration, startTime] = await this.bulbafloor.getAuction(0);
       const nextBlockTimestamp: bigint = BigInt(await getBlockTimestamp()) + 1n;
       const expectedPrice: bigint = BigInt(
@@ -313,7 +313,7 @@ export function shouldBehaveLikeBulbafloor(): void {
       expect(await this.bulbafloor.connect(this.signers.buyer).buy(0));
       expect(await this.Erc20.balanceOf(this.signers.feeRecipient.address)).to.equal(fee);
     });
-    it("should transfer the correct royalty to the royaltyRecipient", async function () {
+    it("transfers the correct royalty to the royaltyRecipient", async function () {
       const [, , , , , , startPrice, , , , royaltyBasisPoints, duration, startTime] =
         await this.bulbafloor.getAuction(0);
       const nextBlockTimestamp: bigint = BigInt(await getBlockTimestamp()) + 1n;
@@ -325,7 +325,7 @@ export function shouldBehaveLikeBulbafloor(): void {
       expect(await this.bulbafloor.connect(this.signers.buyer).buy(0));
       expect(await this.Erc20.balanceOf(this.signers.royaltyRecipient.address)).to.equal(royalty);
     });
-    it("should transfer the correct amount to the seller", async function () {
+    it("transfers the correct amount to the seller", async function () {
       const previousBalance: bigint = await this.Erc20.balanceOf(this.signers.admin.address);
       const [, , , , , , startPrice, , feeBasisPoints, , royaltyBasisPoints, duration, startTime] =
         await this.bulbafloor.getAuction(0);
@@ -342,14 +342,14 @@ export function shouldBehaveLikeBulbafloor(): void {
       expect(await this.Erc20.balanceOf(this.signers.feeRecipient.address)).to.equal(fee);
       expect(await this.Erc20.balanceOf(this.signers.royaltyRecipient.address)).to.equal(royalty);
     });
-    it("should transfer the NFT to the buyer", async function () {
+    it("transfers the NFT to the buyer", async function () {
       await this.bulbafloor.connect(this.signers.buyer).buy(0);
       expect(await this.Erc721.ownerOf(0)).to.equal(this.signers.buyer.address);
 
       await this.bulbafloor.connect(this.signers.buyer).buy(1);
       expect(await this.Erc1155.balanceOf(this.signers.buyer.address, 0)).to.equal(1);
     });
-    it("should emit AuctionSuccessful() with correct parameters", async function () {
+    it("emits AuctionSuccessful() with correct parameters", async function () {
       let [, , , , , , startPrice, , , , , duration, startTime] = await this.bulbafloor.getAuction(0);
       let nextBlockTimestamp: bigint = BigInt(await getBlockTimestamp()) + 1n;
       let expectedPrice: bigint = BigInt(
@@ -387,28 +387,28 @@ export function shouldBehaveLikeBulbafloor(): void {
   });
 
   describe("cancelAuction()", function () {
-    it("should revert if item has already sold", async function () {
+    it("reverts if item has already sold", async function () {
       expect(await this.bulbafloor.connect(this.signers.buyer).buy(0));
       await expect(this.bulbafloor.connect(this.signers.admin).cancelAuction(0))
         .to.be.revertedWithCustomError(this.bulbafloor, "AuctionDoesNotExist")
         .withArgs(0);
     });
-    it("should revert if called by account other than seller", async function () {
+    it("reverts if called by account other than seller", async function () {
       await expect(this.bulbafloor.connect(this.signers.buyer).cancelAuction(0)).to.be.reverted;
     });
-    it("should delete auction from storage", async function () {
+    it("deletes auction from storage", async function () {
       await this.bulbafloor.connect(this.signers.admin).cancelAuction(0);
       await expect(this.bulbafloor.checkAuction(0))
         .to.be.revertedWithCustomError(this.bulbafloor, "AuctionDoesNotExist")
         .withArgs(0);
     });
-    it("should transfer NFT to seller", async function () {
+    it("transfers NFT to seller", async function () {
       await this.bulbafloor.connect(this.signers.admin).cancelAuction(0);
       expect(await this.Erc721.ownerOf(0)).to.equal(this.signers.admin.address);
       await this.bulbafloor.connect(this.signers.admin).cancelAuction(1);
       expect(await this.Erc1155.balanceOf(this.signers.admin.address, 0)).to.equal(1);
     });
-    it("should emit AuctionCancelled() with correct parameters", async function () {
+    it("emits AuctionCancelled() with correct parameters", async function () {
       await expect(this.bulbafloor.connect(this.signers.admin).cancelAuction(0))
         .to.emit(this.bulbafloor, "AuctionCancelled")
         .withArgs(0, this.signers.admin.address, this.Erc721.target, 0);
@@ -416,7 +416,7 @@ export function shouldBehaveLikeBulbafloor(): void {
   });
 
   describe("recoverNativeTokens()", function () {
-    it("should transfer full native token balance to feeRecipient", async function () {
+    it("transfers full native token balance to feeRecipient", async function () {
       const amount = "0xfffffffffff";
       await hre.network.provider.send("hardhat_setBalance", [this.bulbafloor.target, amount]);
       const previousBalance: bigint = await ethers.provider.getBalance(this.signers.feeRecipient.address);
@@ -428,7 +428,7 @@ export function shouldBehaveLikeBulbafloor(): void {
   });
 
   describe("recoverERC20tokens()", function () {
-    it("should transfer full balance of given ERC20 tokens to feeRecipient", async function () {
+    it("transfers full balance of given ERC20 tokens to feeRecipient", async function () {
       const previousBalance: bigint = await this.Erc20.balanceOf(this.signers.feeRecipient.address);
       const amount = 1000000n;
       await this.Erc20.transfer(this.bulbafloor.target, amount);
@@ -438,11 +438,11 @@ export function shouldBehaveLikeBulbafloor(): void {
   });
 
   describe("recoverERC721tokens()", function () {
-    it("should revert if called by account other than owner", async function () {
+    it("reverts if called by account other than owner", async function () {
       await expect(this.bulbafloor.connect(this.signers.buyer).recoverERC721tokens([this.Erc721.target], [0])).to.be
         .reverted;
     });
-    it("should transfer given ERC721 tokens to feeRecipient", async function () {
+    it("transfers given ERC721 tokens to feeRecipient", async function () {
       const previousBalance: bigint = await this.Erc721.balanceOf(this.signers.feeRecipient.address);
       await this.Erc721.safeMint(this.signers.admin.address, 2);
       await this.Erc721.safeTransferFrom(this.signers.admin.address, this.bulbafloor.target, 2);
@@ -452,11 +452,11 @@ export function shouldBehaveLikeBulbafloor(): void {
   });
 
   describe("recoverERC1155tokens()", function () {
-    it("should revert if called by account other than owner", async function () {
+    it("reverts if called by account other than owner", async function () {
       await expect(this.bulbafloor.connect(this.signers.buyer).recoverERC1155tokens([this.Erc1155.target], [0], [1])).to
         .be.reverted;
     });
-    it("should transfer given ERC1155 tokens to feeRecipient", async function () {
+    it("transfers given ERC1155 tokens to feeRecipient", async function () {
       const previousBalance: bigint = await this.Erc1155.balanceOf(this.signers.feeRecipient.address, 0);
       await this.Erc1155.mintBatch(this.bulbafloor.target, [0], [1], "0x");
       await this.bulbafloor.recoverERC1155tokens([this.Erc1155.target], [0], [1]);
