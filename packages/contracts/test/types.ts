@@ -9,6 +9,12 @@ declare module "mocha" {
     bulbafloor: Bulbafloor;
     loadFixture: <T>(fixture: Fixture<T>) => Promise<T>;
     signers: Signers;
+    feeBasisPoints: bigint;
+    royaltyRecipient: string;
+    buyer: string;
+    Erc20: string;
+    Erc721: string;
+    Erc1155: string;
   }
 }
 

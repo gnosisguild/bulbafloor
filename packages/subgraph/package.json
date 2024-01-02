@@ -7,12 +7,13 @@
     "deploy": "graph deploy --node https://api.studio.thegraph.com/deploy/ bulbafloor",
     "create-local": "graph create --node http://localhost:8020/ bulbafloor",
     "remove-local": "graph remove --node http://localhost:8020/ bulbafloor",
-    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 bulbafloor",
-    "test": "graph test"
+    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 bulbafloor"
   },
   "dependencies": {
     "@graphprotocol/graph-cli": "0.49.0",
     "@graphprotocol/graph-ts": "0.29.1"
   },
-  "devDependencies": { "matchstick-as": "0.5.0" }
+  "devDependencies": {
+    "matchstick-as": "0.5.0"
+  }
 }
