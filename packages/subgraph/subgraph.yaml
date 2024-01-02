@@ -1,0 +1,45 @@
+specVersion: 0.0.5
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: Bulbafloor
+    network: sepolia
+    source:
+      address: "0x2Fc6D491268A02A95Df70eaaDB0e7544c920ac23"
+      abi: Bulbafloor
+      startBlock: 5004375
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - AuctionCancelled
+        - AuctionCreated
+        - AuctionSuccessful
+        - FeeBasisPointsSet
+        - FeeRecipientSet
+        - Initialized
+        - Initialized1
+        - OwnershipTransferred
+      abis:
+        - name: Bulbafloor
+          file: ./abis/Bulbafloor.json
+      eventHandlers:
+        - event: AuctionCancelled(uint256,indexed address,indexed address,uint256)
+          handler: handleAuctionCancelled
+        - event: AuctionCreated(uint256,indexed address,uint256,uint8,indexed address,indexed address,uint256,uint256,uint256)
+          handler: handleAuctionCreated
+        - event: AuctionSuccessful(uint256,indexed address,indexed address,indexed address,uint256,uint256,address,uint256)
+          handler: handleAuctionSuccessful
+        - event: FeeBasisPointsSet(uint256)
+          handler: handleFeeBasisPointsSet
+        - event: FeeRecipientSet(address)
+          handler: handleFeeRecipientSet
+        - event: Initialized(uint64)
+          handler: handleInitialized
+        - event: Initialized(indexed address,uint16,indexed address)
+          handler: handleInitialized1
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleOwnershipTransferred
+      file: ./src/bulbafloor.ts

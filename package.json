@@ -31,7 +31,9 @@
     "coverage": "lerna run coverage",
     "clean": "lerna run --parallel clean",
     "task:deployBulbafloor": "lerna run task:deployBulbafloor",
-    "task:buyNFT": "lerna run task:buyNFT"
+    "task:buyNFT": "lerna run task:buyNFT",
+    "lint": "lerna run lint",
+    "typechain": "lerna run typechain"
   },
   "dependencies": {}
 }

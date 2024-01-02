@@ -1,0 +1,62 @@
+type Auction @entity(immutable: false) {
+  id: Bytes!
+  auctionId: BigInt! # uint256
+  tokenContract: Bytes! # address
+  tokenId: BigInt! # uint256
+  tokenType: Int! # uint8
+  saleToken: Bytes! # address
+  seller: Bytes! # address
+  buyer: Bytes # address
+  startPrice: BigInt! # uint256
+  reservePrice: BigInt! # uint256
+  salePrice: BigInt! # uint256
+  duration: BigInt! # uint256
+  feeRecipient: Bytes! # address
+  feeBasisPoints: BigInt! # uint256
+  fee: BigInt! # uint256
+  royaltyRecipient: Bytes! # address
+  royaltyBasisPoints: BigInt! # uint256
+  royalty: BigInt! # uint256
+  sold: Boolean!
+  cancelled: Boolean!
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type Seller @entity(immutable: false) {
+  id: Bytes!
+  auctions: [Auction!]! @derivedFrom(field: "seller")
+  proceeds: BigInt! # uint256
+  auctionsSold: BigInt! # uint256
+}
+
+type Buyer @entity(immutable: false) {
+  id: Bytes!
+  auctions: [Auction!]! @derivedFrom(field: "buyer")
+  totalSpent: BigInt! # uint256
+  auctionsBought: BigInt! # uint256
+}
+
+type TokenContract @entity(immutable: false) {
+  id: Bytes!
+  auctions: [Auction!]! @derivedFrom(field: "tokenContract")
+}
+
+type SaleToken @entity(immutable: false) {
+  id: Bytes!
+  auctions: [Auction!]! @derivedFrom(field: "saleToken")
+  totalProceeds: BigInt! # uint256
+}
+
+type RoyaltyRecipient @entity(immutable: false) {
+  id: Bytes!
+  auctions: [Auction!]! @derivedFrom(field: "royaltyRecipient")
+  royaltiesReceived: BigInt! # uint256
+}
+
+type FeeRecipient @entity(immutable: false) {
+  id: Bytes!
+  auctions: [Auction!]! @derivedFrom(field: "feeRecipient")
+  feesReceived: BigInt! # uint256
+}
