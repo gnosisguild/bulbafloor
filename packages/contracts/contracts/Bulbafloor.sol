@@ -49,9 +49,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
     using SafeERC20 for IERC20;
 
     struct Auction {
-        uint256 tokenId;
-        address tokenContract;
-        TokenType tokenType;
+        Token token;
         uint256 amount;
         address saleToken;
         address seller;
@@ -62,6 +60,12 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         uint16 royaltyBasisPoints;
         uint256 duration;
         uint256 startTime;
+    }
+
+    struct Token {
+        address tokenContract;
+        uint256 tokenId;
+        TokenType tokenType;
     }
 
     enum TokenType {
@@ -91,9 +95,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
     event Initialized(address indexed owner, uint16 feeBasisPoints, address indexed feeRecipient);
     event AuctionCreated(
         uint256 auctionId,
-        address indexed tokenContract,
-        uint256 tokenId,
-        TokenType tokenType,
+        Token token,
         address indexed saleToken,
         address indexed seller,
         uint256 startPrice,
@@ -104,8 +106,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         uint256 auctionId,
         address indexed seller,
         address indexed buyer,
-        address indexed tokenContract,
-        uint256 tokenId,
+        Token token,
         uint256 amount,
         address saleToken,
         uint256 totalPrice
@@ -161,7 +162,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
     /// @param auctionId Auction id to be checked
     /// @return uint256 Auction id
     function checkAuction(uint256 auctionId) public view returns (uint256) {
-        if (auctions[auctionId].tokenContract == address(0)) revert AuctionDoesNotExist(auctionId);
+        if (auctions[auctionId].token.tokenContract == address(0)) revert AuctionDoesNotExist(auctionId);
         return auctionId;
     }
 
@@ -175,22 +176,20 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
 
         uint256 elapsedTime = block.timestamp - auction.startTime;
         uint256 duration = auction.duration;
-        if (elapsedTime >= duration) return (auction.tokenContract, auction.reservePrice);
+        if (elapsedTime >= duration) return (auction.token.tokenContract, auction.reservePrice);
 
         uint256 startPrice = auction.startPrice;
         uint256 priceDrop = (startPrice * elapsedTime) / duration;
         uint256 currentPrice = startPrice - priceDrop;
         if (currentPrice < auction.reservePrice) currentPrice = auction.reservePrice;
-        return (auction.tokenContract, currentPrice);
+        return (auction.token.tokenContract, currentPrice);
     }
 
     /// @notice Returns the auction details
     /// @dev Throws if auction does not exist
     /// @param auctionId Auction id to be checked
-    /// @return tokenContract Address of the token contract
-    /// @return tokenId Id of the token being auctioned
-    /// @return tokenType Type of the token being auctioned (0: ERC721, 1: ERC1155)
-    /// @return amount Amount of the token being auctioned
+    /// @return token Details of the token to be auctioned
+    /// @return amount Amount of the token to be auctioned
     /// @return saleToken Address of the token that the auction is denominated in
     /// @return seller Address of the seller
     /// @return startPrice Starting price of the auction
@@ -206,9 +205,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         external
         view
         returns (
-            address tokenContract,
-            uint256 tokenId,
-            TokenType tokenType,
+            Token memory token,
             uint256 amount,
             address saleToken,
             address seller,
@@ -223,9 +220,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
     {
         Auction storage auction = auctions[checkAuction(auctionId)];
         return (
-            auction.tokenContract,
-            auction.tokenId,
-            auction.tokenType,
+            auction.token,
             auction.amount,
             auction.saleToken,
             auction.seller,
@@ -242,6 +237,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
     /// @notice Deletes the auction
     /// @param auctionId Auction id to be deleted
     function deleteAuction(uint256 auctionId) internal {
+        delete auctions[auctionId].token;
         delete auctions[auctionId];
     }
 
@@ -280,11 +276,10 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
 
         auctionId = nextAuctionId;
         nextAuctionId++;
+        Token memory token = Token({ tokenContract: tokenContract, tokenId: tokenId, tokenType: tokenType });
 
         auctions[auctionId] = Auction({
-            tokenId: tokenId,
-            tokenContract: tokenContract,
-            tokenType: tokenType,
+            token: token,
             amount: amount,
             saleToken: saleToken,
             seller: msg.sender,
@@ -303,17 +298,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
             IERC1155(tokenContract).safeTransferFrom(msg.sender, address(this), tokenId, amount, "");
         }
 
-        emit AuctionCreated(
-            auctionId,
-            tokenContract,
-            tokenId,
-            tokenType,
-            saleToken,
-            msg.sender,
-            startPrice,
-            reservePrice,
-            duration
-        );
+        emit AuctionCreated(auctionId, token, saleToken, msg.sender, startPrice, reservePrice, duration);
     }
 
     /// @notice Buys the token in the given auction for the current price
@@ -324,9 +309,8 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
 
         address seller = auction.seller;
         address saleToken = auction.saleToken;
-        uint256 tokenId = auction.tokenId;
-        TokenType tokenType = auction.tokenType;
-        (address tokenContract, uint256 currentPrice) = getCurrentPrice(auctionId);
+        Token memory token = auction.token;
+        (, uint256 currentPrice) = getCurrentPrice(auctionId);
         uint256 fee = 0;
         uint16 _feeBasisPoints = auction.feeBasisPoints;
         uint256 royalty = 0;
@@ -348,12 +332,12 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
 
         IERC20(saleToken).safeTransferFrom(msg.sender, seller, (currentPrice - fee) - royalty);
 
-        if (tokenType == TokenType.erc721) {
-            IERC721(tokenContract).safeTransferFrom(address(this), msg.sender, tokenId);
+        if (token.tokenType == TokenType.erc721) {
+            IERC721(token.tokenContract).safeTransferFrom(address(this), msg.sender, token.tokenId);
             amount = 1;
-        } else IERC1155(tokenContract).safeTransferFrom(address(this), msg.sender, tokenId, amount, "");
+        } else IERC1155(token.tokenContract).safeTransferFrom(address(this), msg.sender, token.tokenId, amount, "");
 
-        emit AuctionSuccessful(auctionId, seller, msg.sender, tokenContract, tokenId, amount, saleToken, currentPrice);
+        emit AuctionSuccessful(auctionId, seller, msg.sender, token, amount, saleToken, currentPrice);
     }
 
     /// @notice Cancels the given auction
@@ -364,9 +348,9 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         address seller = auction.seller;
         if (msg.sender != seller) revert OnlySellerCanCancel(seller);
 
-        address tokenContract = auction.tokenContract;
-        TokenType tokenType = auction.tokenType;
-        uint256 tokenId = auction.tokenId;
+        address tokenContract = auction.token.tokenContract;
+        TokenType tokenType = auction.token.tokenType;
+        uint256 tokenId = auction.token.tokenId;
         uint256 amount = auction.amount;
 
         deleteAuction(auctionId);

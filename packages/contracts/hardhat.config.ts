@@ -116,9 +116,12 @@ const config: HardhatUserConfig = {
         runs: 800,
         details: {
           yul: true,
+          yulDetails: {
+            optimizerSteps: "u",
+          },
         },
       },
-      viaIR: true,
+      viaIR: false,
     },
   },
   typechain: {

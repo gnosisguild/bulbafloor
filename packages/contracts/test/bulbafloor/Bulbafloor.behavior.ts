@@ -45,14 +45,14 @@ export function shouldBehaveLikeBulbafloor(): void {
 
   describe("getCurrentPrice()", function () {
     it("returns reserve price if elapsed time exceeds duration", async function () {
-      const [, , , , , , , reservePrice, , , , duration] = await this.bulbafloor.getAuction(0);
+      const [, , , , , reservePrice, , , , duration] = await this.bulbafloor.getAuction(0);
       await hre.network.provider.send("evm_increaseTime", [Number(duration) + 1]);
       await hre.network.provider.send("evm_mine");
       const [, currentPrice] = await this.bulbafloor.getCurrentPrice(0);
       expect(currentPrice).to.equal(reservePrice);
     });
     it("returns reserve price if calculated current price is lower than reserve price", async function () {
-      const [, , , , , , startPrice, reservePrice, , , , duration] = await this.bulbafloor.getAuction(0);
+      const [, , , , startPrice, reservePrice, , , , duration] = await this.bulbafloor.getAuction(0);
       const timeIncrement: bigint =
         ((BigInt(startPrice) - BigInt(reservePrice)) * BigInt(duration)) / BigInt(startPrice) + 1n;
       await hre.network.provider.send("evm_increaseTime", [Number(timeIncrement.toString())]);
@@ -61,7 +61,7 @@ export function shouldBehaveLikeBulbafloor(): void {
       expect(currentPrice).to.equal(reservePrice);
     });
     it("returns calculated current price if it is higher than reserve price", async function () {
-      const [, , , , , , startPrice, , , , , duration, startTime] = await this.bulbafloor.getAuction(0);
+      const [, , , , startPrice, , , , , duration, startTime] = await this.bulbafloor.getAuction(0);
       await hre.network.provider.send("evm_increaseTime", [Number(duration) / 2]);
       await hre.network.provider.send("evm_mine");
       const [, currentPrice] = await this.bulbafloor.getCurrentPrice(0);
@@ -175,9 +175,7 @@ export function shouldBehaveLikeBulbafloor(): void {
     });
     it("creates a new auction with correct parameters", async function () {
       const [
-        tokenContract,
-        tokenId,
-        tokenType,
+        token,
         amount,
         saleToken,
         seller,
@@ -189,9 +187,7 @@ export function shouldBehaveLikeBulbafloor(): void {
         duration,
         startTime,
       ] = await this.bulbafloor.getAuction(1);
-      expect(tokenContract).to.equal(this.Erc1155.target);
-      expect(tokenId).to.equal(0);
-      expect(tokenType).to.equal(1);
+      expect(token).to.deep.equal([this.Erc1155.target, 0n, 1n]);
       expect(amount).to.equal(1);
       expect(saleToken).to.equal(this.Erc20.target);
       expect(seller).to.equal(this.signers.admin.address);
@@ -268,7 +264,7 @@ export function shouldBehaveLikeBulbafloor(): void {
         ),
       )
         .to.emit(this.bulbafloor, "AuctionCreated")
-        .withArgs(2, this.Erc721.target, 1, 0, this.Erc20.target, this.signers.admin.address, 10000, 250, 10000);
+        .withArgs(2, [this.Erc721.target, 1, 0], this.Erc20.target, this.signers.admin.address, 10000, 250, 10000);
 
       await expect(
         this.bulbafloor.createAuction(
@@ -285,7 +281,7 @@ export function shouldBehaveLikeBulbafloor(): void {
         ),
       )
         .to.emit(this.bulbafloor, "AuctionCreated")
-        .withArgs(3, this.Erc1155.target, 1, 1, this.Erc20.target, this.signers.admin.address, 10000, 250, 10000);
+        .withArgs(3, [this.Erc1155.target, 1, 1], this.Erc20.target, this.signers.admin.address, 10000, 250, 10000);
     });
   });
 
@@ -303,7 +299,7 @@ export function shouldBehaveLikeBulbafloor(): void {
         .withArgs(0);
     });
     it("transfers the correct fee to feeRecipient", async function () {
-      const [, , , , , , startPrice, , feeBasisPoints, , , duration, startTime] = await this.bulbafloor.getAuction(0);
+      const [, , , , startPrice, , feeBasisPoints, , , duration, startTime] = await this.bulbafloor.getAuction(0);
       const nextBlockTimestamp: bigint = BigInt(await getBlockTimestamp()) + 1n;
       const expectedPrice: bigint = BigInt(
         await calculatePriceAtTimestamp(nextBlockTimestamp, startPrice, duration, startTime),
@@ -314,8 +310,7 @@ export function shouldBehaveLikeBulbafloor(): void {
       expect(await this.Erc20.balanceOf(this.signers.feeRecipient.address)).to.equal(fee);
     });
     it("transfers the correct royalty to the royaltyRecipient", async function () {
-      const [, , , , , , startPrice, , , , royaltyBasisPoints, duration, startTime] =
-        await this.bulbafloor.getAuction(0);
+      const [, , , , startPrice, , , , royaltyBasisPoints, duration, startTime] = await this.bulbafloor.getAuction(0);
       const nextBlockTimestamp: bigint = BigInt(await getBlockTimestamp()) + 1n;
       const expectedPrice: bigint = BigInt(
         await calculatePriceAtTimestamp(nextBlockTimestamp, startPrice, duration, startTime),
@@ -327,7 +322,7 @@ export function shouldBehaveLikeBulbafloor(): void {
     });
     it("transfers the correct amount to the seller", async function () {
       const previousBalance: bigint = await this.Erc20.balanceOf(this.signers.admin.address);
-      const [, , , , , , startPrice, , feeBasisPoints, , royaltyBasisPoints, duration, startTime] =
+      const [, , , , startPrice, , feeBasisPoints, , royaltyBasisPoints, duration, startTime] =
         await this.bulbafloor.getAuction(0);
       const nextBlockTimestamp: bigint = BigInt(await getBlockTimestamp()) + 1n;
       const expectedPrice: bigint = BigInt(
@@ -350,7 +345,7 @@ export function shouldBehaveLikeBulbafloor(): void {
       expect(await this.Erc1155.balanceOf(this.signers.buyer.address, 0)).to.equal(1);
     });
     it("emits AuctionSuccessful() with correct parameters", async function () {
-      let [, , , , , , startPrice, , , , , duration, startTime] = await this.bulbafloor.getAuction(0);
+      let [, , , , startPrice, , , , , duration, startTime] = await this.bulbafloor.getAuction(0);
       let nextBlockTimestamp: bigint = BigInt(await getBlockTimestamp()) + 1n;
       let expectedPrice: bigint = BigInt(
         await calculatePriceAtTimestamp(nextBlockTimestamp, startPrice, duration, startTime),
@@ -361,14 +356,13 @@ export function shouldBehaveLikeBulbafloor(): void {
           0,
           this.signers.admin.address,
           this.signers.buyer.address,
-          this.Erc721.target,
-          0,
+          [this.Erc721.target, 0, 0],
           1,
           this.Erc20.target,
           expectedPrice,
         );
 
-      [, , , , , , startPrice, , , , , duration, startTime] = await this.bulbafloor.getAuction(1);
+      [, , , , startPrice, , , , , duration, startTime] = await this.bulbafloor.getAuction(1);
       nextBlockTimestamp = BigInt(await getBlockTimestamp()) + 1n;
       expectedPrice = BigInt(await calculatePriceAtTimestamp(nextBlockTimestamp, startPrice, duration, startTime));
       await expect(this.bulbafloor.connect(this.signers.buyer).buy(1))
@@ -377,8 +371,7 @@ export function shouldBehaveLikeBulbafloor(): void {
           1,
           this.signers.admin.address,
           this.signers.buyer.address,
-          this.Erc1155.target,
-          0,
+          [this.Erc1155.target, 0, 1],
           1,
           this.Erc20.target,
           expectedPrice,
