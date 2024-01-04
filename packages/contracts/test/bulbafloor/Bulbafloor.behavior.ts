@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { EventLog, Log } from "ethers";
+import { Log } from "ethers";
 import hre, { ethers } from "hardhat";
 
 function getBlockTimestamp(block: string = "latest"): Promise<bigint> {

@@ -34,7 +34,8 @@
     "task:deployBulbafloor": "lerna run task:deployBulbafloor",
     "task:buyNFT": "lerna run task:buyNFT",
     "lint": "lerna run lint",
-    "typechain": "lerna run typechain"
+    "typechain": "lerna run typechain",
+    "mockci": "lerna run lint && lerna run typechain && lerna run coverage"
   },
   "dependencies": {}
 }
