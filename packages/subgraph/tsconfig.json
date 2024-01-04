@@ -1,5 +1,8 @@
 {
   "extends": "@graphprotocol/graph-ts/types/tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true
+  },
   "files": ["./src/bulbafloor.ts"],
   "include": ["src", "tests"]
 }
