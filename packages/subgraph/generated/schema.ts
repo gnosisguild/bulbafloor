@@ -63,8 +63,8 @@ export class Auction extends Entity {
     this.set("auctionId", Value.fromBigInt(value));
   }
 
-  get tokenContract(): string {
-    let value = this.get("tokenContract");
+  get collection(): string {
+    let value = this.get("collection");
     if (!value || value.kind == ValueKind.NULL) {
       throw new Error("Cannot return null for a required field.");
     } else {
@@ -72,8 +72,8 @@ export class Auction extends Entity {
     }
   }
 
-  set tokenContract(value: string) {
-    this.set("tokenContract", Value.fromString(value));
+  set collection(value: string) {
+    this.set("collection", Value.fromString(value));
   }
 
   get tokenId(): BigInt {
@@ -214,17 +214,21 @@ export class Auction extends Entity {
     this.set("feeRecipient", Value.fromString(value));
   }
 
-  get feeBasisPoints(): BigInt {
+  get feeBasisPoints(): BigInt | null {
     let value = this.get("feeBasisPoints");
     if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
+      return null;
     } else {
       return value.toBigInt();
     }
   }
 
-  set feeBasisPoints(value: BigInt) {
-    this.set("feeBasisPoints", Value.fromBigInt(value));
+  set feeBasisPoints(value: BigInt | null) {
+    if (!value) {
+      this.unset("feeBasisPoints");
+    } else {
+      this.set("feeBasisPoints", Value.fromBigInt(<BigInt>value));
+    }
   }
 
   get fee(): BigInt {
@@ -305,43 +309,38 @@ export class Auction extends Entity {
     this.set("cancelled", Value.fromBoolean(value));
   }
 
-  get blockNumber(): BigInt {
-    let value = this.get("blockNumber");
+  get soldTimestamp(): BigInt | null {
+    let value = this.get("soldTimestamp");
     if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
+      return null;
     } else {
       return value.toBigInt();
     }
   }
 
-  set blockNumber(value: BigInt) {
-    this.set("blockNumber", Value.fromBigInt(value));
+  set soldTimestamp(value: BigInt | null) {
+    if (!value) {
+      this.unset("soldTimestamp");
+    } else {
+      this.set("soldTimestamp", Value.fromBigInt(<BigInt>value));
+    }
   }
 
-  get blockTimestamp(): BigInt {
-    let value = this.get("blockTimestamp");
+  get cancelledTimestamp(): BigInt | null {
+    let value = this.get("cancelledTimestamp");
     if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
+      return null;
     } else {
       return value.toBigInt();
     }
   }
 
-  set blockTimestamp(value: BigInt) {
-    this.set("blockTimestamp", Value.fromBigInt(value));
-  }
-
-  get transactionHash(): Bytes {
-    let value = this.get("transactionHash");
-    if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
+  set cancelledTimestamp(value: BigInt | null) {
+    if (!value) {
+      this.unset("cancelledTimestamp");
     } else {
-      return value.toBytes();
+      this.set("cancelledTimestamp", Value.fromBigInt(<BigInt>value));
     }
-  }
-
-  set transactionHash(value: Bytes) {
-    this.set("transactionHash", Value.fromBytes(value));
   }
 }
 
@@ -393,8 +392,8 @@ export class Seller extends Entity {
     }
   }
 
-  get totalProceeds(): BigInt {
-    let value = this.get("totalProceeds");
+  get totalAuctionsSold(): BigInt {
+    let value = this.get("totalAuctionsSold");
     if (!value || value.kind == ValueKind.NULL) {
       throw new Error("Cannot return null for a required field.");
     } else {
@@ -402,34 +401,8 @@ export class Seller extends Entity {
     }
   }
 
-  set totalProceeds(value: BigInt) {
-    this.set("totalProceeds", Value.fromBigInt(value));
-  }
-
-  get averageProceeds(): BigInt {
-    let value = this.get("averageProceeds");
-    if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
-    } else {
-      return value.toBigInt();
-    }
-  }
-
-  set averageProceeds(value: BigInt) {
-    this.set("averageProceeds", Value.fromBigInt(value));
-  }
-
-  get auctionsSold(): BigInt {
-    let value = this.get("auctionsSold");
-    if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
-    } else {
-      return value.toBigInt();
-    }
-  }
-
-  set auctionsSold(value: BigInt) {
-    this.set("auctionsSold", Value.fromBigInt(value));
+  set totalAuctionsSold(value: BigInt) {
+    this.set("totalAuctionsSold", Value.fromBigInt(value));
   }
 }
 
@@ -479,32 +452,6 @@ export class Buyer extends Entity {
     } else {
       return value.toStringArray();
     }
-  }
-
-  get totalSpent(): BigInt {
-    let value = this.get("totalSpent");
-    if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
-    } else {
-      return value.toBigInt();
-    }
-  }
-
-  set totalSpent(value: BigInt) {
-    this.set("totalSpent", Value.fromBigInt(value));
-  }
-
-  get averageSpent(): BigInt {
-    let value = this.get("averageSpent");
-    if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
-    } else {
-      return value.toBigInt();
-    }
-  }
-
-  set averageSpent(value: BigInt) {
-    this.set("averageSpent", Value.fromBigInt(value));
   }
 
   get totalAuctionsBought(): BigInt {
@@ -569,8 +516,8 @@ export class Collection extends Entity {
     }
   }
 
-  get totalProceeds(): BigInt {
-    let value = this.get("totalProceeds");
+  get totalAuctionsSold(): BigInt {
+    let value = this.get("totalAuctionsSold");
     if (!value || value.kind == ValueKind.NULL) {
       throw new Error("Cannot return null for a required field.");
     } else {
@@ -578,12 +525,12 @@ export class Collection extends Entity {
     }
   }
 
-  set totalProceeds(value: BigInt) {
-    this.set("totalProceeds", Value.fromBigInt(value));
+  set totalAuctionsSold(value: BigInt) {
+    this.set("totalAuctionsSold", Value.fromBigInt(value));
   }
 
-  get averageProceeds(): BigInt {
-    let value = this.get("averageProceeds");
+  get totalAuctionsCreated(): BigInt {
+    let value = this.get("totalAuctionsCreated");
     if (!value || value.kind == ValueKind.NULL) {
       throw new Error("Cannot return null for a required field.");
     } else {
@@ -591,21 +538,8 @@ export class Collection extends Entity {
     }
   }
 
-  set averageProceeds(value: BigInt) {
-    this.set("averageProceeds", Value.fromBigInt(value));
-  }
-
-  get totalSales(): BigInt {
-    let value = this.get("totalSales");
-    if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
-    } else {
-      return value.toBigInt();
-    }
-  }
-
-  set totalSales(value: BigInt) {
-    this.set("totalSales", Value.fromBigInt(value));
+  set totalAuctionsCreated(value: BigInt) {
+    this.set("totalAuctionsCreated", Value.fromBigInt(value));
   }
 }
 
@@ -669,6 +603,19 @@ export class SaleToken extends Entity {
   set totalProceeds(value: BigInt) {
     this.set("totalProceeds", Value.fromBigInt(value));
   }
+
+  get totalAuctionsSold(): BigInt {
+    let value = this.get("totalAuctionsSold");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set totalAuctionsSold(value: BigInt) {
+    this.set("totalAuctionsSold", Value.fromBigInt(value));
+  }
 }
 
 export class RoyaltyRecipient extends Entity {
@@ -721,32 +668,6 @@ export class RoyaltyRecipient extends Entity {
     } else {
       return value.toStringArray();
     }
-  }
-
-  get totalRoyaltiesReceived(): BigInt {
-    let value = this.get("totalRoyaltiesReceived");
-    if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
-    } else {
-      return value.toBigInt();
-    }
-  }
-
-  set totalRoyaltiesReceived(value: BigInt) {
-    this.set("totalRoyaltiesReceived", Value.fromBigInt(value));
-  }
-
-  get averageRoyaltyRecieved(): BigInt {
-    let value = this.get("averageRoyaltyRecieved");
-    if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
-    } else {
-      return value.toBigInt();
-    }
-  }
-
-  set averageRoyaltyRecieved(value: BigInt) {
-    this.set("averageRoyaltyRecieved", Value.fromBigInt(value));
   }
 
   get totalAuctionsSold(): BigInt {
@@ -811,32 +732,6 @@ export class FeeRecipient extends Entity {
     } else {
       return value.toStringArray();
     }
-  }
-
-  get totalFeesReceived(): BigInt {
-    let value = this.get("totalFeesReceived");
-    if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
-    } else {
-      return value.toBigInt();
-    }
-  }
-
-  set totalFeesReceived(value: BigInt) {
-    this.set("totalFeesReceived", Value.fromBigInt(value));
-  }
-
-  get averageFeeReceived(): BigInt {
-    let value = this.get("averageFeeReceived");
-    if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
-    } else {
-      return value.toBigInt();
-    }
-  }
-
-  set averageFeeReceived(value: BigInt) {
-    this.set("averageFeeReceived", Value.fromBigInt(value));
   }
 
   get totalAuctionsSold(): BigInt {

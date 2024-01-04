@@ -1,0 +1,10 @@
+# directories
+generated
+node_modules
+build
+
+# files
+*.env
+*.log
+package-lock.json
+yarn.lock
