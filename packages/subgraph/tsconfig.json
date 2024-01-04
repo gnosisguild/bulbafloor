@@ -1,4 +1,5 @@
 {
   "extends": "@graphprotocol/graph-ts/types/tsconfig.base.json",
+  "files": ["./src/bulbafloor.ts"],
   "include": ["src", "tests"]
 }
