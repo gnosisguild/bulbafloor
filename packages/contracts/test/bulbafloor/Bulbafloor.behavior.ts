@@ -1,4 +1,5 @@
 import { expect } from "chai";
+import { EventLog, Log } from "ethers";
 import hre, { ethers } from "hardhat";
 
 function getBlockTimestamp(block: string = "latest"): Promise<bigint> {
@@ -252,40 +253,124 @@ export function shouldBehaveLikeBulbafloor(): void {
       expect(await this.Erc1155.balanceOf(this.bulbafloor.target, 0)).to.equal(1);
     });
     it("emits AuctionCreated() with correct parameters", async function () {
-      await this.Erc721.approve(this.bulbafloor.target, 1);
-      await expect(
-        this.bulbafloor.createAuction(
-          this.Erc721.target,
-          1,
-          0,
-          0,
-          this.Erc20.target,
-          10000,
-          250,
-          this.signers.royaltyRecipient.address,
-          100,
-          10000,
-        ),
-      )
-        .to.emit(this.bulbafloor, "AuctionCreated")
-        .withArgs(2, [this.Erc721.target, 1, 0], this.Erc20.target, this.signers.admin.address, 10000, 250, 10000);
+      // ERC721
+      const erc721Auction = {
+        token: {
+          tokenContract: this.Erc721.target,
+          tokenId: 1n,
+          tokenType: 0n,
+        },
+        amount: 1n,
+        saleToken: this.Erc20.target,
+        seller: this.signers.admin.address,
+        startPrice: 10000n,
+        reservePrice: 250n,
+        feeRecipient: this.signers.feeRecipient.address,
+        feeBasisPoints: this.feeBasisPoints,
+        royaltyRecipient: this.signers.royaltyRecipient.address,
+        royaltyBasisPoints: 100n,
+        duration: 10000n,
+        startTime: 0n,
+      };
 
-      await expect(
-        this.bulbafloor.createAuction(
-          this.Erc1155.target,
-          1,
-          1,
-          1,
-          this.Erc20.target,
-          10000,
-          250,
-          this.signers.royaltyRecipient.address,
-          100,
-          10000,
-        ),
-      )
-        .to.emit(this.bulbafloor, "AuctionCreated")
-        .withArgs(3, [this.Erc1155.target, 1, 1], this.Erc20.target, this.signers.admin.address, 10000, 250, 10000);
+      await this.Erc721.approve(this.bulbafloor.target, 1);
+
+      const erc721CreateAuctionTx = await this.bulbafloor.createAuction(
+        erc721Auction.token.tokenContract,
+        erc721Auction.token.tokenId,
+        erc721Auction.token.tokenType,
+        erc721Auction.amount,
+        erc721Auction.saleToken,
+        erc721Auction.startPrice,
+        erc721Auction.reservePrice,
+        erc721Auction.royaltyRecipient,
+        erc721Auction.royaltyBasisPoints,
+        erc721Auction.duration,
+      );
+
+      const erc721Receipt = await erc721CreateAuctionTx.wait();
+
+      const auctionCreatedEvent = this.bulbafloor.interface.getEvent("AuctionCreated");
+      const erc721EventLog = erc721Receipt?.logs.find((log) => log.topics[0] === auctionCreatedEvent.topicHash) as Log;
+
+      if (!erc721EventLog) {
+        throw new Error("AuctionCreated event not found");
+      }
+
+      const parsedErc721Log = this.bulbafloor.interface.parseLog({
+        topics: Array.from(erc721EventLog.topics),
+        data: erc721EventLog.data,
+      });
+
+      erc721Auction.startTime = await getBlockTimestamp();
+      const erc721AuctionAsArray = Object.values(erc721Auction);
+      erc721AuctionAsArray[0] = Object.values(erc721AuctionAsArray[0]);
+
+      expect(parsedErc721Log?.args).to.deep.equal([
+        2n,
+        erc721AuctionAsArray,
+        this.signers.admin.address,
+        erc721Auction.token.tokenContract,
+      ]);
+
+      // ERC1155
+
+      const erc1155Auction = {
+        token: {
+          tokenContract: this.Erc1155.target,
+          tokenId: 1n,
+          tokenType: 1n,
+        },
+        amount: 1n,
+        saleToken: this.Erc20.target,
+        seller: this.signers.admin.address,
+        startPrice: 10000n,
+        reservePrice: 250n,
+        feeRecipient: this.signers.feeRecipient.address,
+        feeBasisPoints: this.feeBasisPoints,
+        royaltyRecipient: this.signers.royaltyRecipient.address,
+        royaltyBasisPoints: 100n,
+        duration: 10000n,
+        startTime: 0n,
+      };
+
+      await this.Erc1155.setApprovalForAll(this.bulbafloor.target, true);
+      const erc1155CreateAuctionTx = await this.bulbafloor.createAuction(
+        erc1155Auction.token.tokenContract,
+        erc1155Auction.token.tokenId,
+        erc1155Auction.token.tokenType,
+        erc1155Auction.amount,
+        erc1155Auction.saleToken,
+        erc1155Auction.startPrice,
+        erc1155Auction.reservePrice,
+        erc1155Auction.royaltyRecipient,
+        erc1155Auction.royaltyBasisPoints,
+        erc1155Auction.duration,
+      );
+      const erc1155Receipt = await erc1155CreateAuctionTx.wait();
+      const erc1155EventLog = erc1155Receipt?.logs.find(
+        (log) => log.topics[0] === auctionCreatedEvent.topicHash,
+      ) as Log;
+
+      if (!erc1155EventLog) {
+        throw new Error("AuctionCreated event not found");
+      }
+
+      const parsedErc1155Log = this.bulbafloor.interface.parseLog({
+        topics: Array.from(erc1155EventLog.topics),
+        data: erc1155EventLog.data,
+      });
+
+      erc1155Auction.startTime = await getBlockTimestamp();
+      const erc1155AuctionAsArray = Object.values(erc1155Auction);
+      erc1155AuctionAsArray[0] = Object.values(erc1155AuctionAsArray[0]);
+
+      expect(parsedErc1155Log?.args).to.deep.equal([
+        3n,
+        erc1155AuctionAsArray,
+        this.signers.admin.address,
+        erc1155Auction.token.tokenContract,
+      ]);
     });
   });
 
@@ -379,37 +464,27 @@ export function shouldBehaveLikeBulbafloor(): void {
       expect(await this.Erc20.balanceOf(this.signers.royaltyRecipient.address)).to.equal(0);
     });
     it("emits AuctionSuccessful() with correct parameters", async function () {
-      let [, , , , startPrice, , , , , duration, startTime] = await this.bulbafloor.getAuction(0);
+      let [, , , , startPrice, , feeBasisPoints, , royaltyBasisPoints, duration, startTime] =
+        await this.bulbafloor.getAuction(0);
       let tx = await this.bulbafloor.connect(this.signers.buyer).buy(0);
       let blockTimestamp: bigint = await getBlockTimestamp();
       let expectedPrice: bigint = await calculatePriceAtTimestamp(blockTimestamp, startPrice, duration, startTime);
+      let fee = (expectedPrice * feeBasisPoints) / this.denominator;
+      let royalty = (expectedPrice * royaltyBasisPoints) / this.denominator;
       await expect(tx)
         .to.emit(this.bulbafloor, "AuctionSuccessful")
-        .withArgs(
-          0,
-          this.signers.admin.address,
-          this.signers.buyer.address,
-          [this.Erc721.target, 0, 0],
-          1,
-          this.Erc20.target,
-          expectedPrice,
-        );
+        .withArgs(0n, this.signers.admin.address, this.signers.buyer.address, expectedPrice, fee, royalty);
 
-      [, , , , startPrice, , , , , duration, startTime] = await this.bulbafloor.getAuction(1);
+      [, , , , startPrice, , feeBasisPoints, , royaltyBasisPoints, duration, startTime] =
+        await this.bulbafloor.getAuction(1);
       tx = await this.bulbafloor.connect(this.signers.buyer).buy(1);
       blockTimestamp = await getBlockTimestamp();
       expectedPrice = await calculatePriceAtTimestamp(blockTimestamp, startPrice, duration, startTime);
+      fee = (expectedPrice * feeBasisPoints) / this.denominator;
+      royalty = (expectedPrice * royaltyBasisPoints) / this.denominator;
       await expect(tx)
         .to.emit(this.bulbafloor, "AuctionSuccessful")
-        .withArgs(
-          1,
-          this.signers.admin.address,
-          this.signers.buyer.address,
-          [this.Erc1155.target, 0, 1],
-          1,
-          this.Erc20.target,
-          expectedPrice,
-        );
+        .withArgs(1n, this.signers.admin.address, this.signers.buyer.address, expectedPrice, fee, royalty);
     });
   });
 

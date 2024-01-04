@@ -55,6 +55,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         address seller;
         uint256 startPrice;
         uint256 reservePrice;
+        address feeRecipient;
         uint16 feeBasisPoints;
         address royaltyRecipient;
         uint16 royaltyBasisPoints;
@@ -93,23 +94,14 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
     error InvalidLengths();
 
     event Initialized(address indexed owner, uint16 feeBasisPoints, address indexed feeRecipient);
-    event AuctionCreated(
-        uint256 auctionId,
-        Token token,
-        address indexed saleToken,
-        address indexed seller,
-        uint256 startPrice,
-        uint256 reservePrice,
-        uint256 duration
-    );
+    event AuctionCreated(uint256 auctionId, Auction auction, address indexed seller, address indexed tokenContract);
     event AuctionSuccessful(
         uint256 auctionId,
         address indexed seller,
         address indexed buyer,
-        Token token,
-        uint256 amount,
-        address saleToken,
-        uint256 totalPrice
+        uint256 price,
+        uint256 fee,
+        uint256 royalty
     );
     event AuctionCancelled(uint256 auctionId, address indexed seller, address indexed tokenContract, uint256 tokenId);
     event FeeBasisPointsSet(uint256 feeBasisPoints);
@@ -285,6 +277,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
             seller: msg.sender,
             startPrice: startPrice,
             reservePrice: reservePrice,
+            feeRecipient: feeRecipient,
             feeBasisPoints: feeBasisPoints,
             royaltyRecipient: royaltyRecipient,
             royaltyBasisPoints: royaltyBasisPoints,
@@ -298,7 +291,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
             IERC1155(tokenContract).safeTransferFrom(msg.sender, address(this), tokenId, amount, "");
         }
 
-        emit AuctionCreated(auctionId, token, saleToken, msg.sender, startPrice, reservePrice, duration);
+        emit AuctionCreated(auctionId, auctions[auctionId], msg.sender, tokenContract);
     }
 
     /// @notice Buys the token in the given auction for the current price
@@ -313,6 +306,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
         (, uint256 currentPrice) = getCurrentPrice(auctionId);
         uint256 fee = 0;
         uint16 _feeBasisPoints = auction.feeBasisPoints;
+        address _feeRecipient = auction.feeRecipient;
         uint256 royalty = 0;
         uint16 royaltyBasisPoints = auction.royaltyBasisPoints;
         address royaltyRecipient = auction.royaltyRecipient;
@@ -322,7 +316,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
 
         if (_feeBasisPoints != 0) {
             fee = (currentPrice * _feeBasisPoints) / DENOMINATOR;
-            IERC20(saleToken).safeTransferFrom(msg.sender, feeRecipient, fee);
+            IERC20(saleToken).safeTransferFrom(msg.sender, _feeRecipient, fee);
         }
 
         if (royaltyBasisPoints != 0) {
@@ -337,7 +331,7 @@ contract Bulbafloor is Initializable, OwnableUpgradeable, ERC1155Holder, ERC721H
             amount = 1;
         } else IERC1155(token.tokenContract).safeTransferFrom(address(this), msg.sender, token.tokenId, amount, "");
 
-        emit AuctionSuccessful(auctionId, seller, msg.sender, token, amount, saleToken, currentPrice);
+        emit AuctionSuccessful(auctionId, seller, msg.sender, currentPrice, fee, royalty);
     }
 
     /// @notice Cancels the given auction
