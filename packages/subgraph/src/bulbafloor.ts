@@ -1,13 +1,8 @@
-import { dataSource, Bytes, BigInt, log } from "@graphprotocol/graph-ts";
+import { dataSource, BigInt, log } from "@graphprotocol/graph-ts";
 import {
   AuctionCancelled as AuctionCancelledEvent,
   AuctionCreated as AuctionCreatedEvent,
   AuctionSuccessful as AuctionSuccessfulEvent,
-  FeeBasisPointsSet as FeeBasisPointsSetEvent,
-  FeeRecipientSet as FeeRecipientSetEvent,
-  Initialized as InitializedEvent,
-  Initialized1 as Initialized1Event,
-  OwnershipTransferred as OwnershipTransferredEvent,
 } from "../generated/Bulbafloor/Bulbafloor";
 import {
   Auction,
@@ -42,7 +37,6 @@ function loadOrCreateBuyer(address: string): Buyer {
     .getString("networkId")
     .concat("-")
     .concat(address);
-  let seller = Seller.load(id);
   let buyer = Buyer.load(id);
   if (buyer == null) {
     buyer = new Buyer(id);
@@ -114,13 +108,12 @@ function loadOrCreateFeeRecipient(address: string): FeeRecipient {
 }
 
 export function handleAuctionCreated(event: AuctionCreatedEvent): void {
-  let collection = loadOrCreateCollection(
+  const collection = loadOrCreateCollection(
     event.params.auction.token.tokenContract.toHexString(),
   );
   collection.totalAuctionsCreated = collection.totalAuctionsCreated.plus(ONE);
   collection.save();
-
-  let auction = new Auction(
+  const auction = new Auction(
     dataSource
       .context()
       .getString("networkId")
@@ -160,15 +153,15 @@ export function handleAuctionCreated(event: AuctionCreatedEvent): void {
 }
 
 export function handleAuctionSuccessful(event: AuctionSuccessfulEvent): void {
-  let seller = loadOrCreateSeller(event.params.seller.toString());
+  const seller = loadOrCreateSeller(event.params.seller.toString());
   seller.totalAuctionsSold = seller.totalAuctionsSold.plus(ONE);
   seller.save();
 
-  let buyer = loadOrCreateBuyer(event.params.buyer.toString());
+  const buyer = loadOrCreateBuyer(event.params.buyer.toString());
   buyer.totalAuctionsBought = buyer.totalAuctionsBought.plus(ONE);
   buyer.save();
 
-  let auction = Auction.load(
+  const auction = Auction.load(
     dataSource
       .context()
       .getString("networkId")
@@ -187,27 +180,29 @@ export function handleAuctionSuccessful(event: AuctionSuccessfulEvent): void {
   auction.sold = true;
   auction.save();
 
-  let collection = loadOrCreateCollection(auction.collection);
+  const collection = loadOrCreateCollection(auction.collection);
   collection.totalAuctionsSold = collection.totalAuctionsSold.plus(ONE);
   collection.save();
 
-  let saleToken = loadOrCreateSaleToken(auction.saleToken);
+  const saleToken = loadOrCreateSaleToken(auction.saleToken);
   saleToken.totalProceeds = saleToken.totalProceeds.plus(event.params.price);
   saleToken.totalAuctionsSold = saleToken.totalAuctionsSold.plus(ONE);
   saleToken.save();
 
-  let royaltyRecipient = loadOrCreateRoyaltyRecipient(auction.royaltyRecipient);
+  const royaltyRecipient = loadOrCreateRoyaltyRecipient(
+    auction.royaltyRecipient,
+  );
   royaltyRecipient.totalAuctionsSold =
     royaltyRecipient.totalAuctionsSold.plus(ONE);
   royaltyRecipient.save();
 
-  let feeRecipient = loadOrCreateFeeRecipient(auction.feeRecipient);
+  const feeRecipient = loadOrCreateFeeRecipient(auction.feeRecipient);
   feeRecipient.totalAuctionsSold = feeRecipient.totalAuctionsSold.plus(ONE);
   feeRecipient.save();
 }
 
 export function handleAuctionCancelled(event: AuctionCancelledEvent): void {
-  let auction = Auction.load(
+  const auction = Auction.load(
     dataSource
       .context()
       .getString("networkId")
