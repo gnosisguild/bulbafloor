@@ -3,5 +3,6 @@
   "compilerOptions": {
     "composite": true
   },
+  "files": ["./src/bulbafloor.ts"],
   "include": ["src", "tests"]
 }

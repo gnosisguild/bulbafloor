@@ -1,6 +1,6 @@
 import type { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/dist/src/signer-with-address";
 
-import type { Bulbafloor } from "../types/Bulbafloor";
+import type { Bulbafloor } from "../types/contracts/Bulbafloor";
 
 type Fixture<T> = () => Promise<T>;
 

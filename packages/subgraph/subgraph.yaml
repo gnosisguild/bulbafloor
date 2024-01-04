@@ -6,7 +6,7 @@ dataSources:
     name: Bulbafloor
     network: sepolia
     source:
-      address: "0x2Fc6D491268A02A95Df70eaaDB0e7544c920ac23"
+      address: "0x9d5753f9C47F22cdB5F67d2B34979903798E8065"
       abi: Bulbafloor
       startBlock: 5004375
     mapping:
@@ -14,32 +14,25 @@ dataSources:
       apiVersion: 0.0.7
       language: wasm/assemblyscript
       entities:
-        - AuctionCancelled
-        - AuctionCreated
-        - AuctionSuccessful
-        - FeeBasisPointsSet
-        - FeeRecipientSet
-        - Initialized
-        - Initialized1
-        - OwnershipTransferred
+        - Auction
+        - Seller
+        - Buyer
+        - Collection
+        - SaleToken
+        - RoyaltyRecipient
+        - FeeRecipient
       abis:
         - name: Bulbafloor
-          file: ./abis/Bulbafloor.json
+          file: ../contracts/artifacts/contracts/Bulbafloor.sol/Bulbafloor.json
       eventHandlers:
+        - event: AuctionCreated(uint256,((address,uint256,uint8),uint256,address,address,uint256,uint256,address,uint16,address,uint16,uint256,uint256),indexed address,indexed address)
+          handler: handleAuctionCreated
+        - event: AuctionSuccessful(uint256,indexed address,indexed address,uint256,uint256,uint256)
+          handler: handleAuctionSuccessful
         - event: AuctionCancelled(uint256,indexed address,indexed address,uint256)
           handler: handleAuctionCancelled
-        - event: AuctionCreated(uint256,indexed address,uint256,uint8,indexed address,indexed address,uint256,uint256,uint256)
-          handler: handleAuctionCreated
-        - event: AuctionSuccessful(uint256,indexed address,indexed address,indexed address,uint256,uint256,address,uint256)
-          handler: handleAuctionSuccessful
-        - event: FeeBasisPointsSet(uint256)
-          handler: handleFeeBasisPointsSet
         - event: FeeRecipientSet(address)
           handler: handleFeeRecipientSet
-        - event: Initialized(uint64)
-          handler: handleInitialized
         - event: Initialized(indexed address,uint16,indexed address)
           handler: handleInitialized1
-        - event: OwnershipTransferred(indexed address,indexed address)
-          handler: handleOwnershipTransferred
       file: ./src/bulbafloor.ts
