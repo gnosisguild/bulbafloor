@@ -8,3 +8,4 @@ build
 *.log
 package-lock.json
 yarn.lock
+*.latest.json
